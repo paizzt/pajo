@@ -303,7 +303,7 @@ def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session =
             "positif": pos,
             "negatif": neg,
             "netral": net,
-            "akurasi_model": "N/A"
+            "akurasi_model": f"{ml_model.metrics['accuracy']}%" if ml_model.is_trained and ml_model.metrics else "N/A"
         },
         "pie_data": pie_data,
         "trend_data": trend_data,

@@ -8,6 +8,7 @@ import {
   LineChart, Line
 } from 'recharts';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
@@ -67,7 +68,19 @@ const Dashboard = () => {
       {/* STAT CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {STATS_DATA.map((stat, index) => (
-          <div key={index} className={`card p-4 border ${stat.color}`}>
+          <div 
+            key={index} 
+            className={`card p-4 border ${stat.color} cursor-pointer hover:shadow-md transition-shadow`}
+            onClick={() => {
+              Swal.fire({
+                title: stat.title,
+                html: `<div class="text-3xl font-bold mt-2">${stat.value}</div>`,
+                icon: 'info',
+                confirmButtonColor: '#3b82f6',
+                confirmButtonText: 'Tutup'
+              });
+            }}
+          >
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-gray-500">{stat.title}</p>
