@@ -1,27 +1,53 @@
-import React, { useState } from 'react';
-import { Network, Search, Hash } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Network, Search, Hash, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const TFIDF_DATA = [
-  { word: "aplikasi", tf: "0.1250", idf: "1.4200", tfidf: "0.1775" },
-  { word: "login", tf: "0.0833", idf: "1.8700", tfidf: "0.1557" },
-  { word: "bantu", tf: "0.0500", idf: "2.1000", tfidf: "0.1050" },
-  { word: "mudah", tf: "0.0450", idf: "2.1500", tfidf: "0.0967" },
-  { word: "error", tf: "0.0410", idf: "2.3000", tfidf: "0.0943" },
-  { word: "transfer", tf: "0.0380", idf: "2.4500", tfidf: "0.0931" },
-  { word: "gagal", tf: "0.0350", idf: "2.6000", tfidf: "0.0910" },
-];
-
-const BIGRAM_DATA = [
-  { name: 'tidak bisa', count: 540 },
-  { name: 'sangat bantu', count: 480 },
-  { name: 'sering error', count: 420 },
-  { name: 'gagal login', count: 380 },
-  { name: 'mudah pakai', count: 350 },
-];
+import axios from 'axios';
 
 const TfIdfNGrams = () => {
   const [activeTab, setActiveTab] = useState('bigram');
+  const [features, setFeatures] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchFeatures();
+  }, []);
+
+  const fetchFeatures = async () => {
+    try {
+      // Ambil lebih banyak fitur agar cukup untuk ngram
+      const res = await axios.get('http://localhost:8000/api/features?limit=500');
+      setFeatures(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredFeatures = features.filter(f => f.word.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Process N-Gram data dynamically based on active tab
+  const nGramData = useMemo(() => {
+    if (!features || features.length === 0) return [];
+    
+    let targetSpaces = 0;
+    if (activeTab === 'bigram') targetSpaces = 1;
+    else if (activeTab === 'trigram') targetSpaces = 2;
+
+    // Filter by word length (spaces) and sort by IDF (lower IDF = more frequent)
+    const filtered = features
+      .filter(f => (f.word.match(/ /g) || []).length === targetSpaces)
+      .sort((a, b) => a.idf - b.idf) // Ascending IDF
+      .slice(0, 7) // Ambil top 7
+      .map(f => ({
+        name: f.word,
+        // Inverse the IDF for chart visualization so higher bars = more frequent
+        count: Math.round((10 - f.idf) * 10)
+      }));
+
+    return filtered;
+  }, [features, activeTab]);
 
   return (
     <div className="space-y-6">
@@ -56,7 +82,13 @@ const TfIdfNGrams = () => {
               <h3 className="font-semibold text-gray-700 text-sm">Top TF-IDF Words</h3>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-2 text-gray-400" />
-                <input type="text" className="pl-8 py-1 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-primary outline-none" placeholder="Cari kata..." />
+                <input 
+                  type="text" 
+                  className="pl-8 py-1 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-primary outline-none" 
+                  placeholder="Cari kata..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -70,14 +102,29 @@ const TfIdfNGrams = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {TFIDF_DATA.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-gray-900">{item.word}</td>
-                      <td className="px-4 py-3 text-right">{item.tf}</td>
-                      <td className="px-4 py-3 text-right">{item.idf}</td>
-                      <td className="px-4 py-3 text-right font-medium text-primary">{item.tfidf}</td>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
+                        <Loader2 size={24} className="animate-spin mx-auto mb-2 text-primary" />
+                        Memuat fitur TF-IDF...
+                      </td>
                     </tr>
-                  ))}
+                  ) : filteredFeatures.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
+                        Tidak ada data fitur TF-IDF. Lakukan proses Training terlebih dahulu.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredFeatures.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-gray-900">{item.word}</td>
+                        <td className="px-4 py-3 text-right">{item.tf}</td>
+                        <td className="px-4 py-3 text-right">{item.idf}</td>
+                        <td className="px-4 py-3 text-right font-medium text-primary">{item.tfidf}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -119,12 +166,12 @@ const TfIdfNGrams = () => {
               <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Frequency {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h3>
               <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={BIGRAM_DATA} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                  <BarChart data={nGramData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
                     <XAxis type="number" axisLine={false} tickLine={false} />
                     <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#4b5563', fontSize: 12}} />
                     <Tooltip cursor={{fill: '#f3f4f6'}} />
-                    <Bar dataKey="count" fill="#d946ef" radius={[0, 4, 4, 0]} barSize={24} />
+                    <Bar dataKey="count" fill="#d946ef" radius={[0, 4, 4, 0]} barSize={24} name="Frequency Score" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

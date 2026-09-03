@@ -1,29 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PieChart, Pie, Cell, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, AreaChart, Area
 } from 'recharts';
-import { Filter, Calendar } from 'lucide-react';
-
-const PIE_DATA = [
-  { name: 'Positif', value: 7850, color: '#10b981' },
-  { name: 'Negatif', value: 3120, color: '#ef4444' },
-  { name: 'Netral', value: 1480, color: '#64748b' },
-];
-
-const TREND_DATA = [
-  { name: 'Jan', Positif: 400, Negatif: 240, Netral: 100 },
-  { name: 'Feb', Positif: 300, Negatif: 139, Netral: 80 },
-  { name: 'Mar', Positif: 500, Negatif: 280, Netral: 120 },
-  { name: 'Apr', Positif: 478, Negatif: 190, Netral: 110 },
-  { name: 'Mei', Positif: 589, Negatif: 120, Netral: 90 },
-  { name: 'Jun', Positif: 630, Negatif: 150, Netral: 130 },
-  { name: 'Jul', Positif: 720, Negatif: 110, Netral: 140 },
-  { name: 'Ags', Positif: 850, Negatif: 90, Netral: 160 },
-];
+import { Filter, Calendar, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const Visualisasi = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [sentimentFilter, setSentimentFilter] = useState('all');
+
+  useEffect(() => {
+    fetchStats();
+  }, [timeFilter, sentimentFilter]);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`http://localhost:8000/api/dashboard/stats?time=${timeFilter}&sentiment=${sentimentFilter}`);
+      setData(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 size={32} className="animate-spin text-primary" />
+        <span className="ml-2 text-gray-500">Memuat visualisasi...</span>
+      </div>
+    );
+  }
+
+  const PIE_DATA = data?.pie_data || [];
+  const TREND_DATA = data?.trend_data || [];
+  const TOP_WORDS = data?.top_words || [];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end">
@@ -33,12 +51,26 @@ const Visualisasi = () => {
         </div>
         
         <div className="flex gap-2">
-          <button className="btn btn-secondary flex items-center gap-2">
-            <Filter size={16} /> Filter Lanjutan
-          </button>
-          <button className="btn btn-secondary flex items-center gap-2">
-            <Calendar size={16} /> Sepanjang Waktu
-          </button>
+          <select 
+            className="input-field py-2 text-sm bg-white border border-gray-200 rounded-md px-3"
+            value={sentimentFilter}
+            onChange={(e) => setSentimentFilter(e.target.value)}
+          >
+            <option value="all">Semua Sentimen</option>
+            <option value="POSITIF">Positif</option>
+            <option value="NEGATIF">Negatif</option>
+            <option value="NETRAL">Netral</option>
+          </select>
+          <select 
+            className="input-field py-2 text-sm bg-white border border-gray-200 rounded-md px-3"
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value)}
+          >
+            <option value="all">Sepanjang Waktu</option>
+            <option value="today">Hari Ini</option>
+            <option value="week">Minggu Ini</option>
+            <option value="month">Bulan Ini</option>
+          </select>
         </div>
       </div>
 
@@ -124,17 +156,17 @@ const Visualisasi = () => {
            </div>
            <h3 className="text-xl font-bold mb-6 text-gray-200">Word Cloud Visualizer</h3>
            <div className="w-full max-w-2xl h-64 border border-gray-700 rounded-lg flex items-center justify-center bg-gray-800 shadow-inner">
-             {/* This represents a wordcloud placeholder */}
-             <div className="text-center p-6">
-                <span className="text-4xl text-emerald-400 font-bold mx-2">mudah</span>
-                <span className="text-2xl text-emerald-300 font-semibold mx-2">membantu</span>
-                <span className="text-5xl text-red-500 font-extrabold mx-2">login</span>
-                <span className="text-3xl text-red-400 font-bold mx-2">error</span>
-                <span className="text-xl text-gray-400 mx-2">aplikasi</span>
-                <span className="text-lg text-emerald-200 mx-2">cepat</span>
-                <span className="text-3xl text-red-300 mx-2">gagal</span>
-                <span className="text-2xl text-emerald-400 mx-2">bagus</span>
-                <span className="text-sm text-gray-500 mx-2">update</span>
+             {/* Simple visualizer mapping top words dynamically */}
+             <div className="text-center p-6 flex flex-wrap justify-center gap-4">
+                {TOP_WORDS.map((w, i) => {
+                  const sizes = ['text-4xl font-bold', 'text-2xl font-semibold', 'text-5xl font-extrabold', 'text-3xl font-bold', 'text-xl', 'text-lg', 'text-sm'];
+                  const colors = ['text-emerald-400', 'text-emerald-300', 'text-red-500', 'text-red-400', 'text-gray-400', 'text-emerald-200', 'text-gray-500'];
+                  return (
+                    <span key={i} className={`${sizes[i % sizes.length]} ${colors[i % colors.length]}`}>
+                      {w.name}
+                    </span>
+                  );
+                })}
              </div>
            </div>
            <p className="text-gray-400 text-sm mt-4">Menampilkan representasi kata yang paling sering muncul dari dataset ulasan.</p>

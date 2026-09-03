@@ -41,7 +41,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className="h-16 flex items-center px-6 border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-2 text-primary">
             <BrainCircuit size={28} className="text-primary" />
-            <span className="text-xl font-bold tracking-tight text-gray-800">SENTIMU</span>
+            <span className="text-xl font-bold tracking-tight text-gray-800">PAJO</span>
           </div>
         </div>
         

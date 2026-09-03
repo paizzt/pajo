@@ -47,11 +47,11 @@ const Pengaturan = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-                    <input type="text" className="input-field" defaultValue="Administrator Sentimu" />
+                    <input type="text" className="input-field" defaultValue="Administrator Pajo" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" className="input-field" defaultValue="admin@sentimu.local" />
+                    <input type="email" className="input-field" defaultValue="admin@pajo.local" />
                   </div>
                 </div>
                 <div>

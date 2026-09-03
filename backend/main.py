@@ -9,10 +9,11 @@ from typing import List, Optional
 
 import models
 from database import engine, SessionLocal
+from ml_pipeline import ml_model
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="SENTIMU API", description="API untuk Sistem Analisis Sentimen")
+app = FastAPI(title="PAJO API", description="API untuk Sistem Analisis Sentimen")
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,9 +48,18 @@ class SaveReviewsRequest(BaseModel):
     app_id: str
     reviews: List[ReviewItem]
 
+class AnalyzeRequest(BaseModel):
+    text: str
+
+class TrainRequest(BaseModel):
+    c: float = 1.0
+    kernel: str = 'linear'
+    max_features: int = 1500
+    ngram_range: str = '(1,3)'
+
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to SENTIMU Backend API"}
+    return {"message": "Welcome to PAJO Backend API"}
 
 from urllib.parse import urlparse, parse_qs
 
@@ -137,13 +147,137 @@ def get_reviews(db: Session = Depends(get_db), limit: int = 100):
         })
     return {"data": formatted, "total": len(formatted)}
 
+@app.post("/api/analyze")
+def analyze_text(req: AnalyzeRequest):
+    try:
+        if not req.text.strip():
+            raise HTTPException(status_code=400, detail="Text cannot be empty")
+        result = ml_model.predict(req.text)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/features")
+def get_features(limit: int = 50):
+    try:
+        features = ml_model.get_top_features(n=limit)
+        return {"status": "success", "data": features}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/model/train")
+def train_model(req: TrainRequest, db: Session = Depends(get_db)):
+    try:
+        # Fetch all labeled reviews
+        all_reviews = db.query(models.Review).all()
+        if len(all_reviews) < 10:
+            raise HTTPException(status_code=400, detail="Not enough data to train model (need at least 10 reviews)")
+            
+        texts = [r.content for r in all_reviews]
+        labels = [r.sentiment_label for r in all_reviews]
+        
+        # Parse ngram_range
+        # "(1,3)" -> (1,3)
+        n_tuple = (1,1)
+        if req.ngram_range == '(1,2)': n_tuple = (1,2)
+        elif req.ngram_range == '(1,3)': n_tuple = (1,3)
+        elif req.ngram_range == '(2,2)': n_tuple = (2,2)
+        
+        metrics = ml_model.train(
+            texts=texts, 
+            labels=labels, 
+            C=req.c, 
+            kernel=req.kernel, 
+            ngram_range=n_tuple,
+            max_features=req.max_features
+        )
+        return {"status": "success", "message": "Model trained successfully", "metrics": metrics}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/model/metrics")
+def get_metrics():
+    try:
+        if not ml_model.is_trained:
+            return {"status": "error", "detail": "Model is not trained yet"}
+        return {"status": "success", "data": ml_model.metrics}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/model/status")
+def get_model_status():
+    try:
+        is_trained = ml_model.is_trained
+        
+        # Get file modified date if exists
+        last_training = "Never"
+        if os.path.exists(ml_model.model_path):
+            mtime = os.path.getmtime(ml_model.model_path)
+            last_training = datetime.datetime.fromtimestamp(mtime).strftime('%d %B %Y %H:%M')
+            
+        algo = "SVM"
+        kernel = "linear"
+        c_param = 1.0
+        if is_trained and ml_model.model:
+            kernel = ml_model.model.kernel
+            c_param = ml_model.model.C
+            algo = f"SVM ({kernel.capitalize()})"
+            
+        features = "TF-IDF"
+        max_f = 1500
+        ngram = "(1,1)"
+        if is_trained and ml_model.vectorizer:
+            max_f = ml_model.vectorizer.max_features
+            ngram = str(ml_model.vectorizer.ngram_range).replace(' ', '')
+            if ml_model.vectorizer.ngram_range[1] > 1:
+                features = "TF-IDF + N-Grams"
+                
+        return {
+            "status": "success", 
+            "data": {
+                "is_trained": is_trained,
+                "last_training": last_training,
+                "algorithm": algo,
+                "feature_extraction": features,
+                "kernel": kernel,
+                "c_param": c_param,
+                "max_features": max_f,
+                "ngram_range": ngram
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/dashboard/stats")
-def get_dashboard_stats(db: Session = Depends(get_db)):
-    total = db.query(models.Review).count()
+def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session = Depends(get_db)):
+    query = db.query(models.Review)
     
-    pos = db.query(models.Review).filter(models.Review.sentiment_label == "POSITIF").count()
-    neg = db.query(models.Review).filter(models.Review.sentiment_label == "NEGATIF").count()
-    net = db.query(models.Review).filter(models.Review.sentiment_label == "NETRAL").count()
+    # Time filtering
+    if time != 'all':
+        now = datetime.datetime.now()
+        if time == 'today':
+            date_filter = now.strftime('%Y-%m-%d')
+            query = query.filter(models.Review.date.like(f"{date_filter}%"))
+        elif time == 'week':
+            week_ago = now - datetime.timedelta(days=7)
+            query = query.filter(models.Review.date >= week_ago.strftime('%Y-%m-%d'))
+        elif time == 'month':
+            month_filter = now.strftime('%Y-%m')
+            query = query.filter(models.Review.date.like(f"{month_filter}%"))
+            
+    # Sentiment filtering
+    if sentiment != 'all':
+        query = query.filter(models.Review.sentiment_label == sentiment)
+        
+    total = query.count()
+    
+    pos_query = query.filter(models.Review.sentiment_label == "POSITIF")
+    neg_query = query.filter(models.Review.sentiment_label == "NEGATIF")
+    net_query = query.filter(models.Review.sentiment_label == "NETRAL")
+    
+    pos = pos_query.count()
+    neg = neg_query.count()
+    net = net_query.count()
 
     pie_data = [
         {"name": "Positif", "value": pos, "color": "#10b981"},

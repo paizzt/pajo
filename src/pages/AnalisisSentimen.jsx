@@ -1,34 +1,30 @@
 import React, { useState } from 'react';
 import { Send, CheckCircle2, XCircle, MinusCircle, Loader2 } from 'lucide-react';
+import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const AnalisisSentimen = () => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!text.trim()) return;
     
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setResult({
-        sentiment: 'POSITIF',
-        confidence: 92.45,
-        probabilities: {
-          positive: 92.45,
-          negative: 4.20,
-          neutral: 3.35
-        },
-        preprocessing: {
-          original: text,
-          cleaning: text.toLowerCase().replace(/[^\w\s]/gi, ''),
-          tokenization: text.toLowerCase().replace(/[^\w\s]/gi, '').split(' '),
-          stemming: text.toLowerCase().replace(/[^\w\s]/gi, '').split(' ').map(w => w.length > 3 ? w.substring(0, w.length - 1) : w) // dummy stemming
-        }
+    try {
+      const response = await axios.post('http://localhost:8000/api/analyze', { text });
+      setResult(response.data.data);
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal!',
+        text: err.response?.data?.detail || "Terjadi kesalahan saat menganalisis sentimen.",
       });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const getSentimentColor = (sentiment) => {

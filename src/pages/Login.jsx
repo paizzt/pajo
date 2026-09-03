@@ -44,7 +44,7 @@ const Login = () => {
                   type="text"
                   required
                   className="input-field pl-10"
-                  placeholder="admin@sentimu.com"
+                  placeholder="admin@pajo.com"
                 />
               </div>
             </div>

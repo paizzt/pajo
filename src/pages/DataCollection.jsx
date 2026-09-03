@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Download, UploadCloud, Link as LinkIcon, Database, CheckCircle, FileText, Loader2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const DataCollection = () => {
   const [activeTab, setActiveTab] = useState('upload');
@@ -57,7 +58,11 @@ const DataCollection = () => {
     } catch (error) {
       console.error("Save error:", error);
       setSaveStatus('error');
-      alert("Gagal menyimpan ke dataset");
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal!',
+        text: "Gagal menyimpan ke dataset",
+      });
     }
   };
 

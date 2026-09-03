@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import axios from 'axios';
-
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import Swal from 'sweetalert2';
 const DataUlasan = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [sentimentFilter, setSentimentFilter] = useState('');
+  const [ratingFilter, setRatingFilter] = useState('');
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,7 +20,7 @@ const DataUlasan = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, sentimentFilter, ratingFilter]);
 
   const fetchReviews = async () => {
     try {
@@ -53,10 +57,71 @@ const DataUlasan = () => {
     );
   };
 
-  const filteredReviews = reviews.filter(r => r.text.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredReviews = reviews.filter(r => {
+    const matchesSearch = r.text.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSentiment = sentimentFilter === '' || r.sentiment === sentimentFilter;
+    const matchesRating = ratingFilter === '' || r.rating.toString() === ratingFilter;
+    return matchesSearch && matchesSentiment && matchesRating;
+  });
   const totalItems = filteredReviews.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
   const currentItems = filteredReviews.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  
+  const exportCSV = () => {
+    if (filteredReviews.length === 0) return Swal.fire({ icon: 'warning', title: 'Oops...', text: 'Tidak ada data untuk diexport' });
+    
+    const headers = ['No', 'Review', 'Rating', 'Tanggal', 'Sentimen', 'Confidence'];
+    const rows = filteredReviews.map((r, i) => [
+      i + 1,
+      `"${r.text.replace(/"/g, '""')}"`,
+      r.rating,
+      r.date,
+      r.sentiment,
+      r.confidence
+    ]);
+    
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'data_ulasan_pajo.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportPDF = () => {
+    if (filteredReviews.length === 0) return Swal.fire({ icon: 'warning', title: 'Oops...', text: 'Tidak ada data untuk diexport' });
+    
+    const doc = new jsPDF();
+    doc.text("Laporan Data Ulasan - Pajo", 14, 15);
+    
+    const tableColumn = ["No", "Review", "Rating", "Tanggal", "Sentimen"];
+    const tableRows = [];
+    
+    filteredReviews.forEach((r, i) => {
+      const rowData = [
+        i + 1,
+        r.text,
+        r.rating,
+        r.date,
+        r.sentiment
+      ];
+      tableRows.push(rowData);
+    });
+    
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles: { 1: { cellWidth: 90 } } // Limit width of text column to prevent overflow
+    });
+    
+    doc.save("data_ulasan_pajo.pdf");
+  };
   
   const getPageNumbers = () => {
     let pages = [];
@@ -86,10 +151,10 @@ const DataUlasan = () => {
         </div>
         
         <div className="flex flex-wrap gap-2">
-          <button className="btn btn-secondary flex items-center gap-2">
+          <button onClick={exportCSV} className="btn btn-secondary flex items-center gap-2">
             <Download size={16} /> Export CSV
           </button>
-          <button className="btn btn-secondary flex items-center gap-2">
+          <button onClick={exportPDF} className="btn btn-secondary flex items-center gap-2">
             <Download size={16} /> Export PDF
           </button>
         </div>
@@ -112,13 +177,21 @@ const DataUlasan = () => {
           </div>
           
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <select className="input-field py-2 text-sm w-full sm:w-auto bg-white">
+            <select 
+              className="input-field py-2 text-sm w-full sm:w-auto bg-white"
+              value={sentimentFilter}
+              onChange={(e) => setSentimentFilter(e.target.value)}
+            >
               <option value="">Semua Sentimen</option>
               <option value="POSITIF">Positif</option>
               <option value="NEGATIF">Negatif</option>
               <option value="NETRAL">Netral</option>
             </select>
-            <select className="input-field py-2 text-sm w-full sm:w-auto bg-white">
+            <select 
+              className="input-field py-2 text-sm w-full sm:w-auto bg-white"
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value)}
+            >
               <option value="">Semua Rating</option>
               <option value="5">5 Bintang</option>
               <option value="4">4 Bintang</option>

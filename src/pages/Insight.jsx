@@ -1,7 +1,44 @@
-import React from 'react';
-import { TrendingUp, AlertTriangle, CheckCircle, ThumbsDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, AlertTriangle, CheckCircle, ThumbsDown, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const Insight = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/dashboard/stats');
+      setData(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 size={32} className="animate-spin text-primary" />
+        <span className="ml-2 text-gray-500">Memuat insight...</span>
+      </div>
+    );
+  }
+
+  const stats = data?.stats || { total_ulasan: 0, positif: 0, negatif: 0, netral: 0 };
+  const topWords = data?.top_words || [];
+  
+  const posPerc = stats.total_ulasan ? Math.round((stats.positif / stats.total_ulasan) * 100) : 0;
+  const negPerc = stats.total_ulasan ? Math.round((stats.negatif / stats.total_ulasan) * 100) : 0;
+  
+  const dominant = posPerc > negPerc ? 'POSITIF' : 'NEGATIF';
+  const isPos = dominant === 'POSITIF';
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
@@ -9,11 +46,15 @@ const Insight = () => {
         <p className="text-sm text-gray-500 mt-1">Kesimpulan dan rekomendasi otomatis berdasarkan hasil analisis data.</p>
       </div>
 
-      <div className="card bg-emerald-600 text-white p-8">
+      <div className={`card ${isPos ? 'bg-emerald-600' : 'bg-red-600'} text-white p-8`}>
         <div>
           <h2 className="text-2xl font-bold mb-2">Kesimpulan</h2>
-          <p className="text-emerald-100 text-lg leading-relaxed">
-            "Sentimen <span className="font-bold text-emerald-300">POSITIF</span> merupakan kategori dominan dengan persentase 63,05%. Namun, terdapat keluhan <span className="font-bold text-rose-300">NEGATIF</span> yang signifikan (25,06%) yang mayoritas berkaitan dengan masalah login dan performa aplikasi di jam sibuk."
+          <p className={`${isPos ? 'text-emerald-100' : 'text-red-100'} text-lg leading-relaxed`}>
+            "Sentimen <span className={`font-bold ${isPos ? 'text-emerald-300' : 'text-red-300'}`}>{dominant}</span> merupakan kategori dominan dengan persentase {Math.max(posPerc, negPerc)}%. 
+            {isPos ? 
+              ` Namun, terdapat keluhan NEGATIF yang cukup perlu diperhatikan sebesar ${negPerc}%.` :
+              ` Terdapat sentimen POSITIF sebesar ${posPerc}% yang perlu ditingkatkan.`
+            }
           </p>
         </div>
       </div>
@@ -64,7 +105,7 @@ const Insight = () => {
           Recommendation for Business
         </h3>
         <p className="text-gray-700 leading-relaxed bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
-          "Berdasarkan hasil analisis sentimen di atas, pengembang dan tim IT Muamalat <strong>sangat direkomendasikan untuk memprioritaskan peningkatan stabilitas proses login (Authentication Server) dan mengoptimalkan kapasitas server transaksi pada jam sibuk</strong>. Menyelesaikan kendala 'gagal login' dapat berpotensi menurunkan sentimen negatif secara drastis hingga 40%."
+          "Berdasarkan analisis frekuensi kata, topik yang sering dibicarakan adalah {topWords.slice(0,3).map(w => w.name).join(', ')}. <strong>Sangat direkomendasikan untuk memprioritaskan peningkatan fitur yang berkaitan dengan keluhan terbanyak untuk menurunkan sentimen negatif.</strong>"
         </p>
       </div>
     </div>
