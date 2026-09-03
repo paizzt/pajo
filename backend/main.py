@@ -136,13 +136,21 @@ def get_reviews(db: Session = Depends(get_db), limit: int = 100):
     # Format to match frontend expectations
     formatted = []
     for r in all_reviews:
+        confidence = "N/A"
+        if ml_model.is_trained:
+            try:
+                pred = ml_model.predict(r.content)
+                confidence = f"{pred['confidence']}%"
+            except:
+                pass
+                
         formatted.append({
             "id": r.id,
             "text": r.content,
             "rating": r.score,
             "date": r.date.split("T")[0] if "T" in r.date else r.date,
             "sentiment": r.sentiment_label,
-            "confidence": "N/A", # Will be updated when ML is integrated
+            "confidence": confidence,
             "username": r.username
         })
     return {"data": formatted, "total": len(formatted)}
@@ -247,6 +255,29 @@ def get_model_status():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/model/confusion_details")
+def get_confusion_details(actual: str, predicted: str, db: Session = Depends(get_db)):
+    if not ml_model.is_trained:
+        return {"data": []}
+    
+    # Get all reviews with this actual sentiment
+    reviews = db.query(models.Review).filter(models.Review.sentiment_label == actual).all()
+    results = []
+    for r in reviews:
+        try:
+            pred = ml_model.predict(r.content)
+            if pred["sentiment"] == predicted:
+                results.append({
+                    "id": r.id,
+                    "username": r.username,
+                    "content": r.content,
+                    "confidence": f"{pred['confidence']}%"
+                })
+        except:
+            pass
+            
+    return {"data": results}
 
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session = Depends(get_db)):
