@@ -5,7 +5,14 @@ import { useNavigate } from 'react-router-dom';
 const Header = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [hasUnread, setHasUnread] = useState(true);
   const notificationRef = useRef(null);
+
+  const handleNotificationClick = (path) => {
+    setHasUnread(false);
+    setShowNotifications(false);
+    if (path) navigate(path);
+  };
 
   // Close notification dropdown when clicking outside
   useEffect(() => {
@@ -46,7 +53,7 @@ const Header = ({ toggleSidebar }) => {
             onClick={() => setShowNotifications(!showNotifications)}
           >
             <Bell size={20} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            {hasUnread && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
           </button>
           
           {showNotifications && (
@@ -61,7 +68,10 @@ const Header = ({ toggleSidebar }) => {
                 </button>
               </div>
               <div className="max-h-[320px] overflow-y-auto">
-                <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer">
+                <div 
+                  className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => handleNotificationClick('/evaluasi')}
+                >
                   <div className="flex items-start gap-3">
                     <div className="w-2 h-2 mt-1.5 rounded-full bg-emerald-500 shrink-0"></div>
                     <div>
@@ -71,7 +81,10 @@ const Header = ({ toggleSidebar }) => {
                     </div>
                   </div>
                 </div>
-                <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer">
+                <div 
+                  className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => handleNotificationClick('/data-collection')}
+                >
                   <div className="flex items-start gap-3">
                     <div className="w-2 h-2 mt-1.5 rounded-full bg-sky-500 shrink-0"></div>
                     <div>
@@ -81,7 +94,10 @@ const Header = ({ toggleSidebar }) => {
                     </div>
                   </div>
                 </div>
-                <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
+                <div 
+                  className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => handleNotificationClick('/')}
+                >
                   <div className="flex items-start gap-3">
                     <div className="w-2 h-2 mt-1.5 rounded-full bg-amber-500 shrink-0"></div>
                     <div>
@@ -95,7 +111,7 @@ const Header = ({ toggleSidebar }) => {
               <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
                 <button 
                   className="text-xs font-semibold text-primary hover:text-emerald-700 transition-colors"
-                  onClick={() => setShowNotifications(false)}
+                  onClick={() => handleNotificationClick(null)}
                 >
                   Tandai semua sudah dibaca
                 </button>

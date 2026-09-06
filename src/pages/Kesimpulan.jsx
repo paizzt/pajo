@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, AlertTriangle, CheckCircle, ThumbsDown, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
-const Insight = () => {
+const Kesimpulan = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +25,7 @@ const Insight = () => {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 size={32} className="animate-spin text-primary" />
-        <span className="ml-2 text-gray-500">Memuat insight...</span>
+        <span className="ml-2 text-gray-500">Memuat kesimpulan...</span>
       </div>
     );
   }
@@ -112,4 +112,4 @@ const Insight = () => {
   );
 };
 
-export default Insight;
+export default Kesimpulan;

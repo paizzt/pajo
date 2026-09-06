@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from google_play_scraper import Sort, reviews
 import datetime
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional

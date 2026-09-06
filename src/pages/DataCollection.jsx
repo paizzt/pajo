@@ -105,6 +105,15 @@ const DataCollection = () => {
                   <UploadCloud size={48} className="mx-auto text-gray-400 mb-4" />
                   <p className="text-sm font-medium text-gray-700 mb-1">Klik untuk memilih file CSV</p>
                   <p className="text-xs text-gray-500">Atau seret dan lepas file ke area ini (Max 50MB)</p>
+                  
+                  <div className="mt-6 inline-block bg-blue-50 border border-blue-100 p-4 rounded-lg text-left" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-sm font-semibold text-blue-800 mb-2">Pastikan format CSV sesuai standar berikut:</p>
+                    <p className="text-xs text-blue-700 mb-2">Harus memiliki 4 kolom dengan nama header (huruf kecil besar harus sama):</p>
+                    <code className="text-xs bg-white px-2 py-1 rounded text-blue-900 border border-blue-200 block mb-2 font-mono">userName,score,at,content</code>
+                    <p className="text-xs text-blue-700">Contoh baris data:</p>
+                    <code className="text-[11px] font-mono text-gray-600 block mt-1">Bagus Prakoso,1,2/19/2026 3:24,"sekarang aplikasi mobile..."</code>
+                  </div>
+                  
                   <input type="file" id="file-upload" className="hidden" accept=".csv" onChange={handleUpload} />
                 </div>
               )}
@@ -167,9 +176,8 @@ const DataCollection = () => {
 
           {activeTab === 'playstore' && (
             <div className="space-y-6">
-              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-lg text-sm text-emerald-800">
-                <span className="font-semibold block mb-1">Status API: Aktif</span>
-                Fitur ini terhubung langsung dengan backend FastAPI (localhost:8000) dan menggunakan pustaka <code>google-play-scraper</code>.
+              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg text-sm text-emerald-800 inline-block">
+                <span className="font-semibold">Status API: Aktif</span>
               </div>
 
               <div className="space-y-4">

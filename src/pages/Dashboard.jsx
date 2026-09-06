@@ -70,7 +70,7 @@ const Dashboard = () => {
         {STATS_DATA.map((stat, index) => (
           <div 
             key={index} 
-            className={`card p-4 border ${stat.color} cursor-pointer hover:shadow-md transition-shadow`}
+            className={`card p-4 border ${stat.color} cursor-pointer hover:shadow-md transition-shadow h-full flex justify-between gap-2`}
             onClick={() => {
               Swal.fire({
                 title: stat.title,
@@ -81,14 +81,12 @@ const Dashboard = () => {
               });
             }}
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
-              </div>
-              <div className="p-2 bg-white rounded-lg shadow-sm">
-                {stat.icon}
-              </div>
+            <div className="flex flex-col justify-between h-full">
+              <p className="text-sm font-medium text-gray-500 min-h-[2.5rem] pr-1">{stat.title}</p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
+            </div>
+            <div className="p-2 bg-white rounded-lg shadow-sm self-start flex-shrink-0">
+              {stat.icon}
             </div>
           </div>
         ))}

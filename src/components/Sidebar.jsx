@@ -9,7 +9,8 @@ import {
   Network,
   Settings,
   Download,
-  Lightbulb
+  Lightbulb,
+  Save
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -22,7 +23,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/model', name: 'Model SVM', icon: <BrainCircuit size={20} /> },
     { path: '/evaluasi', name: 'Evaluasi Model', icon: <BarChart3 size={20} /> },
     { path: '/visualisasi', name: 'Visualisasi', icon: <BarChart3 size={20} /> },
-    { path: '/insight', name: 'Insight', icon: <Lightbulb size={20} /> },
+    { path: '/kesimpulan', name: 'Kesimpulan', icon: <Lightbulb size={20} /> },
+    { path: '/simpan', name: 'Simpan Hasil', icon: <Save size={20} /> },
     { path: '/koleksi', name: 'Data Collection', icon: <Download size={20} /> },
     { path: '/pengaturan', name: 'Pengaturan', icon: <Settings size={20} /> },
   ];

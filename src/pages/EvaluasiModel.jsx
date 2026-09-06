@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, PieChart, Activity, Crosshair, Loader2, X } from 'lucide-react';
+import { Target, PieChart, Activity, Crosshair, Loader2, X, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 
 const EvaluasiModel = () => {
@@ -116,10 +116,7 @@ const EvaluasiModel = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card p-6 bg-white shadow-sm rounded-xl">
-          <h2 className="text-xl font-bold text-center text-gray-800 mb-2">Heatmap Confusion Matrix</h2>
-          <p className="text-sm text-gray-500 text-center max-w-2xl mx-auto mb-8">
-            Evaluasi Kinerja Model SVM. Semakin pekat warnanya, semakin banyak datanya. Klik pada angka untuk melihat detail ulasan.
-          </p>
+          <h2 className="text-xl font-bold text-center text-gray-800 mb-6">Heatmap Confusion Matrix</h2>
 
           <div className="overflow-x-auto flex justify-center">
             <table className="border-collapse" style={{ minWidth: '400px' }}>
@@ -173,54 +170,68 @@ const EvaluasiModel = () => {
             <span>Tinggi</span>
           </div>
         </div>
-      </div>
 
-      {/* Modal for Cell Details */}
-      {selectedCell && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
-              <div>
-                <h3 className="font-bold text-gray-800 text-lg">Detail Confusion Matrix</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Aktual: <span className="font-semibold text-gray-700">{selectedCell.actual}</span> &rarr; Prediksi: <span className="font-semibold text-gray-700">{selectedCell.predicted}</span> ({selectedCell.count} data)
-                </p>
-              </div>
-              <button 
-                onClick={() => setSelectedCell(null)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-5 overflow-y-auto flex-1">
-              {loadingDetails ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="animate-spin text-primary mb-4" size={32} />
-                  <p className="text-gray-500">Memuat detail ulasan...</p>
-                </div>
-              ) : cellDetails.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  Tidak ada detail ulasan yang ditemukan.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {cellDetails.map((detail, idx) => (
-                    <div key={idx} className="p-4 border border-gray-100 rounded-lg bg-gray-50/50">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-semibold text-sm text-gray-700">{detail.username || 'User'}</span>
-                        <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded">Conf: {detail.confidence}</span>
-                      </div>
-                      <p className="text-sm text-gray-600">{detail.content}</p>
+        {/* Side Panel for Cell Details */}
+        <div className="card bg-white shadow-sm rounded-xl flex flex-col h-full min-h-[400px]">
+          {selectedCell ? (
+            <>
+              <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                <div>
+                  <h3 className="font-bold text-gray-800 text-lg mb-2">Detail Confusion Matrix</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-600">
+                      Aktual: <span className="font-bold text-gray-800">{selectedCell.actual}</span>
                     </div>
-                  ))}
+                    <ArrowRight size={18} className="text-emerald-500 stroke-[3]" />
+                    <div className="px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                      Prediksi: <span className="font-bold text-blue-800">{selectedCell.predicted}</span>
+                    </div>
+                    <span className="text-sm bg-white border border-gray-200 px-2 py-1 rounded-md text-gray-500 ml-2 font-medium shadow-sm">
+                      {selectedCell.count} data
+                    </span>
+                  </div>
                 </div>
-              )}
+                <button 
+                  onClick={() => setSelectedCell(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-5 overflow-y-auto flex-1 max-h-[500px]">
+                {loadingDetails ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="animate-spin text-primary mb-4" size={32} />
+                    <p className="text-gray-500">Memuat detail ulasan...</p>
+                  </div>
+                ) : cellDetails.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    Tidak ada detail ulasan yang ditemukan.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cellDetails.map((detail, idx) => (
+                      <div key={idx} className="p-4 border border-gray-100 rounded-lg bg-gray-50/50">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="font-semibold text-sm text-gray-700">{detail.username || 'User'}</span>
+                          <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded">Conf: {detail.confidence}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{detail.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-400">
+              <Crosshair size={48} className="mb-4 text-gray-300" />
+              <p>Klik pada salah satu kotak angka di dalam Heatmap Confusion Matrix untuk melihat detail ulasannya di sini.</p>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

@@ -14,7 +14,8 @@ import TfIdfNGrams from './pages/TfIdfNGrams';
 import ModelSvm from './pages/ModelSvm';
 import EvaluasiModel from './pages/EvaluasiModel';
 import Visualisasi from './pages/Visualisasi';
-import Insight from './pages/Insight';
+import Kesimpulan from './pages/Kesimpulan';
+import SimpanHasil from './pages/SimpanHasil';
 import DataCollection from './pages/DataCollection';
 import Pengaturan from './pages/Pengaturan';
 
@@ -34,7 +35,8 @@ function App() {
           <Route path="/model" element={<ModelSvm />} />
           <Route path="/evaluasi" element={<EvaluasiModel />} />
           <Route path="/visualisasi" element={<Visualisasi />} />
-          <Route path="/insight" element={<Insight />} />
+          <Route path="/kesimpulan" element={<Kesimpulan />} />
+          <Route path="/simpan" element={<SimpanHasil />} />
           <Route path="/koleksi" element={<DataCollection />} />
           <Route path="/pengaturan" element={<Pengaturan />} />
         </Route>
