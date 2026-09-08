@@ -152,7 +152,7 @@ const Visualisasi = () => {
 
         <div className="card p-10 lg:col-span-2 bg-gray-900 text-white flex flex-col items-center justify-center rounded-xl relative overflow-hidden">
            <div className="absolute top-0 right-0 p-4 opacity-30">
-              <span className="text-xs font-mono">wordcloud_engine_v1</span>
+              {/* removed wordcloud text */}
            </div>
            <h3 className="text-xl font-bold mb-6 text-gray-200">Word Cloud Visualizer</h3>
            <div className="w-full max-w-2xl h-64 border border-gray-700 rounded-lg flex items-center justify-center bg-gray-800 shadow-inner">
