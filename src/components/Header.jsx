@@ -1,17 +1,46 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, Menu, User, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const Header = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+  const [hasUnread, setHasUnread] = useState(false);
   const notificationRef = useRef(null);
 
-  const handleNotificationClick = (path) => {
-    setHasUnread(false);
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/notifications');
+      if (res.data.status === 'success') {
+        const notifs = res.data.data;
+        setNotifications(notifs);
+        setHasUnread(notifs.some(n => !n.is_read));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await axios.put('http://localhost:8000/api/notifications/read');
+      setHasUnread(false);
+      setNotifications(notifications.map(n => ({...n, is_read: true})));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleNotificationClick = () => {
     setShowNotifications(false);
-    if (path) navigate(path);
   };
 
   // Close notification dropdown when clicking outside
@@ -53,7 +82,7 @@ const Header = ({ toggleSidebar }) => {
             onClick={() => setShowNotifications(!showNotifications)}
           >
             <Bell size={20} />
-            {hasUnread && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
+            {hasUnread && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}
           </button>
           
           {showNotifications && (
@@ -68,50 +97,34 @@ const Header = ({ toggleSidebar }) => {
                 </button>
               </div>
               <div className="max-h-[320px] overflow-y-auto">
-                <div 
-                  className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleNotificationClick('/evaluasi')}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 mt-1.5 rounded-full bg-emerald-500 shrink-0"></div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Model Selesai Dilatih</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Model SVM berhasil dilatih dengan akurasi 89,45%.</p>
-                      <p className="text-[11px] text-gray-400 mt-2">2 jam yang lalu</p>
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-gray-400 text-sm">Tidak ada notifikasi</div>
+                ) : (
+                  notifications.map(notif => (
+                    <div 
+                      key={notif.id}
+                      className={`p-4 border-b border-gray-50 transition-colors cursor-pointer ${notif.is_read ? 'bg-white hover:bg-gray-50' : 'bg-emerald-50/30 hover:bg-emerald-50/50'}`}
+                      onClick={handleNotificationClick}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${notif.type === 'success' ? 'bg-emerald-500' : notif.type === 'error' ? 'bg-red-500' : notif.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
+                        <div>
+                          <p className={`text-sm font-medium ${notif.is_read ? 'text-gray-600' : 'text-gray-900'}`}>{notif.title}</p>
+                          <p className={`text-xs mt-0.5 ${notif.is_read ? 'text-gray-400' : 'text-gray-600'}`}>{notif.message}</p>
+                          <p className="text-[11px] text-gray-400 mt-2">
+                            {new Date(notif.created_at + 'Z').toLocaleString('id-ID')}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div 
-                  className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleNotificationClick('/data-collection')}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 mt-1.5 rounded-full bg-sky-500 shrink-0"></div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Dataset Baru Diunggah</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Dataset "ulasan_muamalat_agustus.csv" berhasil diunggah dan siap diproses.</p>
-                      <p className="text-[11px] text-gray-400 mt-2">1 hari yang lalu</p>
-                    </div>
-                  </div>
-                </div>
-                <div 
-                  className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleNotificationClick('/')}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 mt-1.5 rounded-full bg-amber-500 shrink-0"></div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Peringatan Server</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Penggunaan CPU server cukup tinggi saat proses ekstraksi N-Grams.</p>
-                      <p className="text-[11px] text-gray-400 mt-2">3 hari yang lalu</p>
-                    </div>
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
               <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
                 <button 
-                  className="text-xs font-semibold text-primary hover:text-emerald-700 transition-colors"
-                  onClick={() => handleNotificationClick(null)}
+                  className={`text-xs font-semibold transition-colors ${hasUnread ? 'text-primary hover:text-emerald-700' : 'text-gray-400 cursor-not-allowed'}`}
+                  onClick={markAllRead}
+                  disabled={!hasUnread}
                 >
                   Tandai semua sudah dibaca
                 </button>
