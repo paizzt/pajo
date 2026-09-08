@@ -55,6 +55,9 @@ class SentimentModel:
         self.model = None
         self.metrics = None
         self.is_trained = False
+        self.is_training = False
+        self.training_progress = 0
+        self.training_status = ""
         self.model_path = "model_svm.pkl"
         self.vectorizer_path = "vectorizer.pkl"
         
@@ -78,37 +81,64 @@ class SentimentModel:
         if not texts or not labels:
             raise Exception("No data provided for training")
             
-        print("Preprocessing texts for training...")
-        processed_texts = [preprocess_text(t) for t in texts]
-        
-        print("Vectorizing...")
-        self.vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=ngram_range)
-        X = self.vectorizer.fit_transform(processed_texts)
-        
-        print("Training model...")
-        self.model = SVC(C=C, kernel=kernel, probability=True)
-        self.model.fit(X, labels)
-        
-        # Save model
-        joblib.dump(self.model, self.model_path)
-        joblib.dump(self.vectorizer, self.vectorizer_path)
-        
-        # Calculate metrics on training data (in real world should be test split)
-        preds = self.model.predict(X)
-        
-        classes = self.model.classes_.tolist()
-        cm = confusion_matrix(labels, preds, labels=classes).tolist()
-        
-        self.metrics = {
-            "accuracy": round(accuracy_score(labels, preds) * 100, 2),
-            "precision": round(precision_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
-            "recall": round(recall_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
-            "f1_score": round(f1_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
-            "confusion_matrix": cm,
-            "classes": classes
-        }
-        self.is_trained = True
-        return self.metrics
+        try:
+            self.is_training = True
+            self.training_progress = 0
+            self.training_status = "Memulai proses pembersihan teks (Preprocessing)..."
+            
+            print("Preprocessing texts for training...")
+            processed_texts = []
+            total = len(texts)
+            for i, t in enumerate(texts):
+                processed_texts.append(preprocess_text(t))
+                # Update progress for preprocessing (0 to 80%)
+                if i % 10 == 0 or i == total - 1:
+                    self.training_progress = int((i + 1) / total * 80)
+            
+            self.training_status = "Mengekstraksi fitur TF-IDF..."
+            self.training_progress = 80
+            print("Vectorizing...")
+            self.vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=ngram_range)
+            X = self.vectorizer.fit_transform(processed_texts)
+            
+            self.training_status = "Melatih model Support Vector Machine..."
+            self.training_progress = 90
+            print("Training model...")
+            self.model = SVC(C=C, kernel=kernel, probability=True)
+            self.model.fit(X, labels)
+            
+            # Save model
+            self.training_status = "Menyimpan model..."
+            self.training_progress = 95
+            joblib.dump(self.model, self.model_path)
+            joblib.dump(self.vectorizer, self.vectorizer_path)
+            
+            # Calculate metrics
+            self.training_status = "Menghitung metrik evaluasi..."
+            preds = self.model.predict(X)
+            
+            classes = self.model.classes_.tolist()
+            cm = confusion_matrix(labels, preds, labels=classes).tolist()
+            
+            self.metrics = {
+                "accuracy": round(accuracy_score(labels, preds) * 100, 2),
+                "precision": round(precision_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
+                "recall": round(recall_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
+                "f1_score": round(f1_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
+                "confusion_matrix": cm,
+                "classes": classes
+            }
+            self.is_trained = True
+            self.training_progress = 100
+            self.training_status = "Selesai"
+            return self.metrics
+            
+        except Exception as e:
+            self.training_status = f"Error: {str(e)}"
+            self.training_progress = 0
+            raise e
+        finally:
+            self.is_training = False
 
     def predict(self, text):
         if not self.is_trained:

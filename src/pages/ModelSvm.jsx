@@ -11,10 +11,62 @@ const ModelSvm = () => {
   const [ngramRange, setNgramRange] = useState('(1,3)');
   const [maxFeatures, setMaxFeatures] = useState(1500);
   const [modelStatus, setModelStatus] = useState(null);
+  const [trainProgress, setTrainProgress] = useState(0);
+  const [trainStatusMsg, setTrainStatusMsg] = useState('');
 
   useEffect(() => {
     fetchModelStatus();
+    checkInitialProgress();
   }, []);
+
+  const checkInitialProgress = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/model/train-progress');
+      if (res.data.is_training) {
+        setIsTraining(true);
+        setTrainProgress(res.data.progress);
+        setTrainStatusMsg(res.data.status_message);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    let interval;
+    if (isTraining) {
+      interval = setInterval(async () => {
+        try {
+          const res = await axios.get('http://localhost:8000/api/model/train-progress');
+          const { is_training, progress, status_message } = res.data;
+          
+          setTrainProgress(progress);
+          setTrainStatusMsg(status_message);
+          
+          if (!is_training) {
+            setIsTraining(false);
+            if (progress === 100) {
+              Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: 'Model berhasil dilatih!',
+              });
+              fetchModelStatus();
+            } else if (status_message && status_message.startsWith('Error')) {
+              Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: status_message,
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch progress', err);
+        }
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [isTraining]);
 
   const fetchModelStatus = async () => {
     try {
@@ -38,6 +90,8 @@ const ModelSvm = () => {
 
   const handleTrain = async () => {
     setIsTraining(true);
+    setTrainProgress(0);
+    setTrainStatusMsg('Menyiapkan data...');
     try {
       const res = await axios.post('http://localhost:8000/api/model/train', {
         c: parseFloat(cParam),
@@ -45,21 +99,16 @@ const ModelSvm = () => {
         ngram_range: ngramRange,
         max_features: parseInt(maxFeatures, 10)
       });
-      Swal.fire({
-        icon: 'success',
-        title: 'Berhasil!',
-        text: res.data.message || 'Model berhasil dilatih!',
-      });
-      fetchModelStatus();
+      // Respons sudah didapat dengan cepat, proses training berjalan di latar belakang.
+      // Polling useEffect akan mengambil alih tampilan progress bar.
     } catch (err) {
+      setIsTraining(false);
       console.error(err);
       Swal.fire({
         icon: 'error',
         title: 'Gagal!',
-        text: err.response?.data?.detail || 'Terjadi kesalahan saat training model',
+        text: err.response?.data?.detail || 'Terjadi kesalahan saat memulai training',
       });
-    } finally {
-      setIsTraining(false);
     }
   };
 
@@ -145,13 +194,38 @@ const ModelSvm = () => {
                 {isTraining ? <RefreshCw className="animate-spin" size={18} /> : <PlayCircle size={18} />}
                 {isTraining ? 'Training in progress...' : 'Train Model'}
               </button>
-              <button className="btn btn-secondary flex items-center justify-center gap-2">
+              <button className="btn btn-secondary flex items-center justify-center gap-2" disabled={isTraining}>
                 <Save size={18} /> Save Model
               </button>
-              <button className="btn btn-secondary flex items-center justify-center gap-2">
+              <button className="btn btn-secondary flex items-center justify-center gap-2" disabled={isTraining}>
                 <Download size={18} /> Load Model
               </button>
             </div>
+
+            {/* PROGRESS BAR SECTION */}
+            {isTraining && (
+              <div className="mt-6 p-4 bg-emerald-50 rounded-xl border border-emerald-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-semibold text-emerald-800">{trainStatusMsg || 'Memproses...'}</span>
+                  <span className="text-sm font-bold text-emerald-700">{trainProgress}%</span>
+                </div>
+                <div className="w-full bg-emerald-200/50 rounded-full h-3 mb-1 overflow-hidden">
+                  <div 
+                    className="bg-emerald-500 h-3 rounded-full transition-all duration-1000 ease-out relative"
+                    style={{ width: `${trainProgress}%` }}
+                  >
+                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[progress_1s_linear_infinite]"></div>
+                  </div>
+                </div>
+                <p className="text-xs text-emerald-600/80 italic mt-2">Jangan tutup tab ini, biarkan proses berjalan di latar belakang.</p>
+              </div>
+            )}
+            <style jsx="true">{`
+              @keyframes progress {
+                0% { background-position: 1rem 0; }
+                100% { background-position: 0 0; }
+              }
+            `}</style>
           </div>
         </div>
 

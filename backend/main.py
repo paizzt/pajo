@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from google_play_scraper import Sort, reviews
@@ -175,8 +175,11 @@ def get_features(limit: int = 50):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/model/train")
-def train_model(req: TrainRequest):
+def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
     try:
+        if ml_model.is_training:
+            raise HTTPException(status_code=400, detail="Training is already in progress")
+            
         # Fetch all labeled reviews using a manual session so we can close it early
         db = SessionLocal()
         try:
@@ -196,7 +199,9 @@ def train_model(req: TrainRequest):
         elif req.ngram_range == '(1,3)': n_tuple = (1,3)
         elif req.ngram_range == '(2,2)': n_tuple = (2,2)
         
-        metrics = ml_model.train(
+        # Dispatch background task
+        background_tasks.add_task(
+            ml_model.train,
             texts=texts, 
             labels=labels, 
             C=req.c, 
@@ -204,9 +209,17 @@ def train_model(req: TrainRequest):
             ngram_range=n_tuple,
             max_features=req.max_features
         )
-        return {"status": "success", "message": "Model trained successfully", "metrics": metrics}
+        return {"status": "processing", "message": "Proses training dimulai di latar belakang..."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/model/train-progress")
+def get_train_progress():
+    return {
+        "is_training": ml_model.is_training,
+        "progress": ml_model.training_progress,
+        "status_message": ml_model.training_status
+    }
 
 @app.get("/api/model/metrics")
 def get_metrics():
