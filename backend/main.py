@@ -175,15 +175,19 @@ def get_features(limit: int = 50):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/model/train")
-def train_model(req: TrainRequest, db: Session = Depends(get_db)):
+def train_model(req: TrainRequest):
     try:
-        # Fetch all labeled reviews
-        all_reviews = db.query(models.Review).all()
-        if len(all_reviews) < 10:
-            raise HTTPException(status_code=400, detail="Not enough data to train model (need at least 10 reviews)")
-            
-        texts = [r.content for r in all_reviews]
-        labels = [r.sentiment_label for r in all_reviews]
+        # Fetch all labeled reviews using a manual session so we can close it early
+        db = SessionLocal()
+        try:
+            all_reviews = db.query(models.Review).all()
+            if len(all_reviews) < 10:
+                raise HTTPException(status_code=400, detail="Not enough data to train model (need at least 10 reviews)")
+                
+            texts = [r.content for r in all_reviews]
+            labels = [r.sentiment_label for r in all_reviews]
+        finally:
+            db.close()
         
         # Parse ngram_range
         # "(1,3)" -> (1,3)

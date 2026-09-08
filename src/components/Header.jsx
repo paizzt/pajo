@@ -121,19 +121,6 @@ const Header = ({ toggleSidebar }) => {
         </div>
         
         <div className="h-8 w-px bg-gray-200 mx-1"></div>
-        
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex flex-col items-end">
-            <span className="text-sm font-medium text-gray-700">Administrator</span>
-            <span className="text-xs text-gray-500">Admin</span>
-          </div>
-          <button 
-            className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm hover:bg-emerald-600 transition-colors shadow-sm"
-            onClick={() => navigate('/login')}
-          >
-            A
-          </button>
-        </div>
       </div>
     </header>
   );

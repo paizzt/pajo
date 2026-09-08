@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Save, User, Sliders, Database, Palette } from 'lucide-react';
 
 const Pengaturan = () => {
-  const [activeTab, setActiveTab] = useState('profil');
+  const [activeTab, setActiveTab] = useState('preprocessing');
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-300">
@@ -13,12 +13,6 @@ const Pengaturan = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-1 space-y-2">
-          <button 
-            onClick={() => setActiveTab('profil')}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-lg transition-colors ${activeTab === 'profil' ? 'bg-emerald-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <User size={18} /> Profil
-          </button>
           <button 
             onClick={() => setActiveTab('preprocessing')}
             className={`w-full flex items-center gap-3 px-4 py-3 font-medium rounded-lg transition-colors ${activeTab === 'preprocessing' ? 'bg-emerald-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -39,35 +33,7 @@ const Pengaturan = () => {
           </button>
         </div>
 
-        <div className="md:col-span-3">
-          {activeTab === 'profil' && (
-            <div className="card p-6 animate-in slide-in-from-right-4 duration-300">
-              <h3 className="text-lg font-bold text-gray-800 mb-6 border-b border-gray-100 pb-3">Profil Administrator</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-                    <input type="text" className="input-field" defaultValue="Administrator Pajo" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" className="input-field" defaultValue="admin@pajo.local" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
-                  <input type="password" className="input-field" placeholder="Kosongkan jika tidak ingin mengubah" />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <button className="btn btn-primary flex items-center gap-2">
-                  <Save size={16} /> Simpan Profil
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'preprocessing' && (
+        <div className="md:col-span-3">          {activeTab === 'preprocessing' && (
             <div className="card p-6 animate-in slide-in-from-right-4 duration-300">
               <h3 className="text-lg font-bold text-gray-800 mb-6 border-b border-gray-100 pb-3">Pengaturan Analisis & Preprocessing</h3>
               <div className="space-y-4">
