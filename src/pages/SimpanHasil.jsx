@@ -1,29 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Folder, FileText, Table, X, Loader2, Edit2 } from 'lucide-react';
+import { Save, Edit2, Trash2, FileText, Loader2, Plus, X, BarChart2 } from 'lucide-react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const SimpanHasil = () => {
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null);
-  const [reviews, setReviews] = useState([]);
   
-  // 'none' | 'folder' | 'report' | 'data'
-  const [view, setView] = useState('none');
-  const [folderName, setFolderName] = useState('Folder Hasil PAJO');
-  const [isEditing, setIsEditing] = useState(false);
+  // Modals state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({ id: null, title: '', description: '', dataset_name: '' });
+  const [currentView, setCurrentView] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchResults();
   }, []);
 
-  const fetchData = async () => {
+  const fetchResults = async () => {
     try {
       setLoading(true);
-      const statsRes = await axios.get('http://localhost:8000/api/dashboard/stats');
-      setStats(statsRes.data);
-      
-      const reviewsRes = await axios.get('http://localhost:8000/api/reviews?limit=1000');
-      setReviews(reviewsRes.data.data);
+      const res = await axios.get('http://localhost:8000/api/results');
+      if (res.data.status === 'success') {
+        setResults(res.data.data);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -31,175 +35,283 @@ const SimpanHasil = () => {
     }
   };
 
+  const handleSaveSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await axios.post('http://localhost:8000/api/results', {
+        title: formData.title,
+        description: formData.description,
+        dataset_name: formData.dataset_name || 'Dataset Default'
+      });
+      Swal.fire('Berhasil!', 'Hasil metrik berhasil disimpan', 'success');
+      setShowSaveModal(false);
+      setFormData({ id: null, title: '', description: '', dataset_name: '' });
+      fetchResults();
+    } catch (err) {
+      Swal.fire('Gagal!', err.response?.data?.detail || 'Gagal menyimpan', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await axios.put(`http://localhost:8000/api/results/${formData.id}`, {
+        title: formData.title,
+        description: formData.description,
+        dataset_name: formData.dataset_name
+      });
+      Swal.fire('Berhasil!', 'Data berhasil diubah', 'success');
+      setShowEditModal(false);
+      fetchResults();
+    } catch (err) {
+      Swal.fire('Gagal!', 'Gagal mengubah data', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const confirm = await Swal.fire({
+      title: 'Hapus data ini?',
+      text: "Data yang dihapus tidak bisa dikembalikan!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, hapus!',
+      cancelButtonText: 'Batal'
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        await axios.delete(`http://localhost:8000/api/results/${id}`);
+        Swal.fire('Terhapus!', 'Data telah dihapus.', 'success');
+        fetchResults();
+      } catch (err) {
+        Swal.fire('Gagal!', 'Terjadi kesalahan saat menghapus', 'error');
+      }
+    }
+  };
+
+  const openEditModal = (res) => {
+    setFormData({
+      id: res.id,
+      title: res.title,
+      description: res.description,
+      dataset_name: res.dataset_name
+    });
+    setShowEditModal(true);
+  };
+
+  const openViewModal = (res) => {
+    setCurrentView(res);
+    setShowViewModal(true);
+  };
+
+  const parseMetrics = (jsonString) => {
+    try {
+      return JSON.parse(jsonString);
+    } catch (e) {
+      return null;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 size={32} className="animate-spin text-primary" />
-        <span className="ml-2 text-gray-500">Memuat data laporan...</span>
+        <span className="ml-2 text-gray-500">Memuat riwayat...</span>
       </div>
     );
   }
 
-  const renderReport = () => (
-    <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm max-h-[600px] overflow-y-auto font-mono text-sm whitespace-pre-wrap">
-      <div className="flex justify-between items-center border-b pb-4 mb-4">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <FileText className="text-blue-500" />
-          Laporan_Ringkasan.txt
-        </h2>
-        <button onClick={() => setView('folder')} className="text-gray-500 hover:text-red-500">
-          <X size={20} />
+  return (
+    <div className="space-y-6 max-w-6xl mx-auto pb-10">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Riwayat & Simpan Hasil</h1>
+          <p className="text-sm text-gray-500 mt-1">Kelola dan lihat kembali riwayat performa model yang pernah dilatih.</p>
+        </div>
+        <button 
+          className="btn btn-primary flex items-center gap-2"
+          onClick={() => {
+            setFormData({ id: null, title: '', description: '', dataset_name: '' });
+            setShowSaveModal(true);
+          }}
+        >
+          <Save size={18} /> Simpan Hasil Saat Ini
         </button>
       </div>
-      <div>
-{`LAPORAN ANALISIS SENTIMEN PAJO
-==============================
 
-Ringkasan:
-- Total Ulasan: ${stats?.stats.total_ulasan}
-- Positif: ${stats?.stats.positif}
-- Negatif: ${stats?.stats.negatif}
-- Netral: ${stats?.stats.netral}
-- Akurasi Model: ${stats?.stats.akurasi_model}
-
-Kata Paling Sering Muncul:
-${stats?.top_words.map((w, i) => `${i + 1}. ${w.name} (${w.count} kali)`).join('\n')}
-`}
-      </div>
-    </div>
-  );
-
-  const renderData = () => (
-    <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-      <div className="flex justify-between items-center border-b pb-4 mb-4">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <Table className="text-emerald-500" />
-          Data_Ulasan.csv (Preview)
-        </h2>
-        <button onClick={() => setView('folder')} className="text-gray-500 hover:text-red-500">
-          <X size={20} />
-        </button>
-      </div>
-      <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-        <table className="w-full text-left border-collapse min-w-max">
-          <thead className="sticky top-0 bg-gray-50">
-            <tr>
-              <th className="p-3 border-b border-gray-200 font-semibold text-sm text-gray-600">ID</th>
-              <th className="p-3 border-b border-gray-200 font-semibold text-sm text-gray-600">Username</th>
-              <th className="p-3 border-b border-gray-200 font-semibold text-sm text-gray-600">Sentimen</th>
-              <th className="p-3 border-b border-gray-200 font-semibold text-sm text-gray-600">Teks Ulasan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reviews.slice(0, 50).map((r, idx) => (
-              <tr key={idx} className="hover:bg-gray-50">
-                <td className="p-3 border-b border-gray-100 text-sm">{r.id}</td>
-                <td className="p-3 border-b border-gray-100 text-sm font-medium">{r.username}</td>
-                <td className="p-3 border-b border-gray-100 text-sm">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                    r.sentiment === 'POSITIF' ? 'bg-emerald-100 text-emerald-700' :
-                    r.sentiment === 'NEGATIF' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {r.sentiment}
-                  </span>
-                </td>
-                <td className="p-3 border-b border-gray-100 text-sm max-w-md truncate" title={r.text}>
-                  {r.text}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {reviews.length > 50 && (
-          <div className="p-3 text-center text-sm text-gray-500">
-            Menampilkan 50 data teratas dari total {reviews.length} data.
+      <div className="card overflow-hidden">
+        {results.length === 0 ? (
+          <div className="p-12 text-center text-gray-500">
+            <FileText size={48} className="mx-auto mb-4 text-gray-300" />
+            <p>Belum ada riwayat hasil yang disimpan.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="p-4 font-semibold text-sm text-gray-600">Judul Hasil</th>
+                  <th className="p-4 font-semibold text-sm text-gray-600">Dataset</th>
+                  <th className="p-4 font-semibold text-sm text-gray-600">Akurasi</th>
+                  <th className="p-4 font-semibold text-sm text-gray-600">Tanggal</th>
+                  <th className="p-4 font-semibold text-sm text-gray-600 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {results.map((res) => (
+                  <tr key={res.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4">
+                      <div className="font-medium text-gray-800">{res.title}</div>
+                      <div className="text-xs text-gray-500 mt-1 line-clamp-1 max-w-xs">{res.description}</div>
+                    </td>
+                    <td className="p-4 text-sm text-gray-600">{res.dataset_name || '-'}</td>
+                    <td className="p-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                        {res.accuracy ? `${res.accuracy}%` : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-gray-500">
+                      {new Date(res.created_at + 'Z').toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}
+                    </td>
+                    <td className="p-4 text-right flex items-center justify-end gap-2">
+                      <button 
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                        onClick={() => openViewModal(res)}
+                        title="Lihat Laporan"
+                      >
+                        <BarChart2 size={18} />
+                      </button>
+                      <button 
+                        className="p-1.5 text-amber-600 hover:bg-amber-50 rounded"
+                        onClick={() => openEditModal(res)}
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                        onClick={() => handleDelete(res.id)}
+                        title="Hapus"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
-    </div>
-  );
 
-  return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Hasil Analisis</h1>
-        <p className="text-sm text-gray-500 mt-1">Lihat dan buka hasil kumpulan analisis sentimen langsung di dalam website.</p>
-      </div>
-
-      {view === 'none' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          <div 
-            onClick={() => setView('folder')}
-            className="card p-6 border-2 border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50 transition-all cursor-pointer flex flex-col items-center text-center group"
-          >
-            <div className="w-20 h-20 bg-emerald-100 group-hover:bg-emerald-200 rounded-2xl flex items-center justify-center text-emerald-600 mb-4 transition-colors">
-              <Folder size={40} className="fill-emerald-500 text-emerald-600" />
+      {/* MODAL: SAVE */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-gray-800">Simpan Hasil Metrik Saat Ini</h3>
+              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
-            
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={folderName} 
-                onChange={(e) => setFolderName(e.target.value)} 
-                onBlur={() => setIsEditing(false)}
-                onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
-                autoFocus
-                className="text-xl font-bold text-gray-800 mb-2 text-center border-b-2 border-emerald-500 focus:outline-none bg-transparent"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <div 
-                className="flex items-center gap-2 mb-2" 
-                onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-                title="Klik untuk mengubah nama folder"
-              >
-                <h2 className="text-xl font-bold text-gray-800">{folderName}</h2>
-                <Edit2 size={16} className="text-gray-400 hover:text-emerald-500" />
+            <form onSubmit={handleSaveSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Judul Laporan</label>
+                <input required type="text" className="input-field w-full" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Contoh: Model Terbaik Agustus" />
               </div>
-            )}
-            
-            <p className="text-gray-500 text-sm">
-              Berisi Laporan Ringkasan dan File Data Ulasan
-            </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dataset yang Digunakan</label>
+                <input type="text" className="input-field w-full" value={formData.dataset_name} onChange={e => setFormData({...formData, dataset_name: e.target.value})} placeholder="Opsional (cth: Dataset Livin)" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi / Catatan</label>
+                <textarea className="input-field w-full min-h-[80px]" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Catatan opsional mengenai performa model..."></textarea>
+              </div>
+              <div className="pt-2">
+                <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full flex justify-center items-center gap-2">
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} 
+                  Simpan Sekarang
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {view === 'folder' && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-6 border-b pb-4">
-            <button onClick={() => setView('none')} className="text-gray-400 hover:text-gray-700">
-              <Folder size={24} className="fill-emerald-500 text-emerald-600" />
-            </button>
-            <span className="text-gray-400">/</span>
-            <h2 className="text-lg font-bold">{folderName}</h2>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
-            {/* Report File */}
-            <div 
-              onClick={() => setView('report')}
-              className="flex flex-col items-center p-4 rounded-xl hover:bg-blue-50 cursor-pointer border border-transparent hover:border-blue-100 transition-all"
-            >
-              <FileText size={48} className="text-blue-500 mb-3" />
-              <span className="text-sm font-medium text-center break-all">Laporan_Ringkasan.txt</span>
+      {/* MODAL: EDIT */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-gray-800">Edit Riwayat</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
-
-            {/* CSV File */}
-            <div 
-              onClick={() => setView('data')}
-              className="flex flex-col items-center p-4 rounded-xl hover:bg-emerald-50 cursor-pointer border border-transparent hover:border-emerald-100 transition-all"
-            >
-              <Table size={48} className="text-emerald-500 mb-3" />
-              <span className="text-sm font-medium text-center break-all">Data_Ulasan.csv</span>
-            </div>
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Judul Laporan</label>
+                <input required type="text" className="input-field w-full" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi / Catatan</label>
+                <textarea className="input-field w-full min-h-[80px]" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+              </div>
+              <div className="pt-2">
+                <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full flex justify-center items-center gap-2">
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} 
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {view === 'report' && renderReport()}
-      {view === 'data' && renderData()}
+      {/* MODAL: VIEW REPORT */}
+      {showViewModal && currentView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                <BarChart2 className="text-primary" size={20} /> 
+                Laporan: {currentView.title}
+              </h3>
+              <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto font-mono text-sm">
+              <div className="bg-gray-900 text-emerald-400 p-6 rounded-xl shadow-inner whitespace-pre-wrap overflow-x-auto">
+{`--- LAPORAN HASIL PELATIHAN SVM ---
+Tanggal  : ${new Date(currentView.created_at + 'Z').toLocaleString('id-ID')}
+Akurasi  : ${currentView.accuracy}%
+Dataset  : ${currentView.dataset_name || '-'}
+
+Catatan:
+${currentView.description || 'Tidak ada catatan.'}
+
+--- METRIK DETAIL ---
+${(() => {
+  const m = parseMetrics(currentView.metrics_json);
+  if (!m) return "Format metrik tidak valid atau belum tersedia.";
+  return JSON.stringify(m, null, 2);
+})()}
+`}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50">
+              <button className="btn btn-secondary" onClick={() => setShowViewModal(false)}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

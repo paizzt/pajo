@@ -13,11 +13,28 @@ const ModelSvm = () => {
   const [modelStatus, setModelStatus] = useState(null);
   const [trainProgress, setTrainProgress] = useState(0);
   const [trainStatusMsg, setTrainStatusMsg] = useState('');
+  const [datasets, setDatasets] = useState([]);
+  const [selectedDataset, setSelectedDataset] = useState('');
 
   useEffect(() => {
     fetchModelStatus();
     checkInitialProgress();
+    fetchDatasets();
   }, []);
+
+  const fetchDatasets = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/datasets');
+      if (res.data.status === 'success') {
+        setDatasets(res.data.data);
+        if (res.data.data.length > 0) {
+          setSelectedDataset(res.data.data[0].id);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch datasets', e);
+    }
+  };
 
   const checkInitialProgress = async () => {
     try {
@@ -97,7 +114,8 @@ const ModelSvm = () => {
         c: parseFloat(cParam),
         kernel,
         ngram_range: ngramRange,
-        max_features: parseInt(maxFeatures, 10)
+        max_features: parseInt(maxFeatures, 10),
+        dataset_id: selectedDataset ? parseInt(selectedDataset, 10) : null
       });
       // Respons sudah didapat dengan cepat, proses training berjalan di latar belakang.
       // Polling useEffect akan mengambil alih tampilan progress bar.
@@ -185,22 +203,39 @@ const ModelSvm = () => {
               </div>
             </div>
             
-            <div className="mt-8 pt-6 border-t border-gray-100 flex gap-3">
-              <button 
-                className="btn btn-primary flex-1 flex items-center justify-center gap-2"
-                onClick={handleTrain}
-                disabled={isTraining}
-              >
-                {isTraining ? <RefreshCw className="animate-spin" size={18} /> : <PlayCircle size={18} />}
-                {isTraining ? 'Training in progress...' : 'Train Model'}
-              </button>
-              <button className="btn btn-secondary flex items-center justify-center gap-2" disabled={isTraining}>
-                <Save size={18} /> Save Model
-              </button>
-              <button className="btn btn-secondary flex items-center justify-center gap-2" disabled={isTraining}>
-                <Download size={18} /> Load Model
-              </button>
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Dataset untuk Dilatih</label>
+                <select 
+                  className="input-field max-w-sm"
+                  value={selectedDataset}
+                  onChange={(e) => setSelectedDataset(e.target.value)}
+                  disabled={isTraining}
+                >
+                  {datasets.length === 0 && <option value="">Tidak ada dataset tersedia</option>}
+                  {datasets.map(ds => (
+                    <option key={ds.id} value={ds.id}>{ds.name} ({ds.review_count} data)</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+                  onClick={handleTrain}
+                  disabled={isTraining || !selectedDataset}
+                >
+                  {isTraining ? <RefreshCw className="animate-spin" size={18} /> : <PlayCircle size={18} />}
+                  {isTraining ? 'Training in progress...' : 'Train Model'}
+                </button>
+                <button className="btn btn-secondary flex items-center justify-center gap-2" disabled={isTraining}>
+                  <Save size={18} /> Save Model
+                </button>
+                <button className="btn btn-secondary flex items-center justify-center gap-2" disabled={isTraining}>
+                  <Download size={18} /> Load Model
+                </button>
+              </div>
             </div>
+
 
             {/* PROGRESS BAR SECTION */}
             {isTraining && (

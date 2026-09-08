@@ -15,6 +15,7 @@ const DataCollection = () => {
   const [scrapeData, setScrapeData] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState('idle');
+  const [datasetName, setDatasetName] = useState('Dataset Baru');
 
   const handleUpload = (e) => {
     e.preventDefault();
@@ -51,6 +52,7 @@ const DataCollection = () => {
       setSaveStatus('loading');
       await axios.post('http://localhost:8000/api/reviews/save', {
         app_id: scrapeData.app_id,
+        dataset_name: datasetName,
         reviews: scrapeData.data
       });
       setSaveStatus('success');
@@ -246,18 +248,31 @@ const DataCollection = () => {
                 
                 {scrapeStatus === 'success' && scrapeData && (
                   <div className="mt-6 border border-emerald-100 rounded-xl overflow-hidden animate-in fade-in duration-500">
-                    <div className="bg-emerald-50 p-4 border-b border-emerald-100 flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-emerald-800">Scraping Berhasil</h4>
-                        <p className="text-xs text-emerald-600 mt-0.5">{scrapeData.total_extracted} ulasan berhasil diekstrak dari {scrapeData.app_id}</p>
+                    <div className="bg-emerald-50 p-4 border-b border-emerald-100 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-bold text-emerald-800">Scraping Berhasil</h4>
+                          <p className="text-xs text-emerald-600 mt-0.5">{scrapeData.total_extracted} ulasan berhasil diekstrak dari {scrapeData.app_id}</p>
+                        </div>
+                        <button 
+                          className={`btn py-1.5 text-xs ${saveStatus === 'success' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'btn-primary'}`} 
+                          onClick={handleSaveToDataset}
+                          disabled={saveStatus === 'loading' || saveStatus === 'success' || !datasetName.trim()}
+                        >
+                          {saveStatus === 'loading' ? 'Menyimpan...' : saveStatus === 'success' ? 'Berhasil Disimpan' : 'Simpan ke Dataset'}
+                        </button>
                       </div>
-                      <button 
-                        className={`btn py-1.5 text-xs ${saveStatus === 'success' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'btn-primary'}`} 
-                        onClick={handleSaveToDataset}
-                        disabled={saveStatus === 'loading' || saveStatus === 'success'}
-                      >
-                        {saveStatus === 'loading' ? 'Menyimpan...' : saveStatus === 'success' ? 'Berhasil Disimpan' : 'Simpan ke Dataset'}
-                      </button>
+                      <div className="flex items-center gap-2 mt-2">
+                        <label className="text-sm font-semibold text-emerald-800 whitespace-nowrap">Simpan sebagai Dataset:</label>
+                        <input 
+                          type="text" 
+                          className="input-field py-1.5 px-3 text-sm flex-1 max-w-sm" 
+                          value={datasetName} 
+                          onChange={(e) => setDatasetName(e.target.value)} 
+                          placeholder="Beri nama dataset ini, cth: Data Livin"
+                          disabled={saveStatus === 'success'}
+                        />
+                      </div>
                     </div>
                     <div className="p-0 max-h-64 overflow-y-auto">
                       <table className="min-w-full divide-y divide-gray-200">

@@ -47,16 +47,28 @@ class ReviewItem(BaseModel):
 
 class SaveReviewsRequest(BaseModel):
     app_id: str
+    dataset_name: Optional[str] = "Dataset Default"
     reviews: List[ReviewItem]
 
 class AnalyzeRequest(BaseModel):
     text: str
+
+
+class DatasetCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class SavedResultCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    dataset_name: Optional[str] = None
 
 class TrainRequest(BaseModel):
     c: float = 1.0
     kernel: str = 'linear'
     max_features: int = 1500
     ngram_range: str = '(1,3)'
+    dataset_id: Optional[int] = None
 
 @app.get("/")
 def read_root():
@@ -174,6 +186,37 @@ def get_features(limit: int = 50):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+def background_train_wrapper(texts, labels, C, kernel, ngram_range, max_features, db_factory):
+    import json
+    try:
+        metrics = ml_model.train(texts, labels, C, kernel, ngram_range, max_features)
+        
+        # Save Notification
+        db = db_factory()
+        try:
+            notif = models.Notification(
+                title="Model Selesai Dilatih",
+                message=f"Model SVM berhasil dilatih dengan akurasi {metrics['accuracy']}%.",
+                type="success"
+            )
+            db.add(notif)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        db = db_factory()
+        try:
+            notif = models.Notification(
+                title="Pelatihan Gagal",
+                message=f"Error: {str(e)}",
+                type="error"
+            )
+            db.add(notif)
+            db.commit()
+        finally:
+            db.close()
+
 @app.post("/api/model/train")
 def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
     try:
@@ -183,7 +226,11 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
         # Fetch all labeled reviews using a manual session so we can close it early
         db = SessionLocal()
         try:
-            all_reviews = db.query(models.Review).all()
+            query = db.query(models.Review)
+            if req.dataset_id:
+                query = query.filter(models.Review.dataset_id == req.dataset_id)
+            all_reviews = query.all()
+            
             if len(all_reviews) < 10:
                 raise HTTPException(status_code=400, detail="Not enough data to train model (need at least 10 reviews)")
                 
@@ -193,7 +240,6 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
             db.close()
         
         # Parse ngram_range
-        # "(1,3)" -> (1,3)
         n_tuple = (1,1)
         if req.ngram_range == '(1,2)': n_tuple = (1,2)
         elif req.ngram_range == '(1,3)': n_tuple = (1,3)
@@ -201,13 +247,14 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
         
         # Dispatch background task
         background_tasks.add_task(
-            ml_model.train,
+            background_train_wrapper,
             texts=texts, 
             labels=labels, 
             C=req.c, 
             kernel=req.kernel, 
             ngram_range=n_tuple,
-            max_features=req.max_features
+            max_features=req.max_features,
+            db_factory=SessionLocal
         )
         return {"status": "processing", "message": "Proses training dimulai di latar belakang..."}
     except Exception as e:
@@ -358,3 +405,95 @@ def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session =
         "trend_data": trend_data,
         "top_words": top_words
     }
+
+
+# ================= NEW ENDPOINTS =================
+
+@app.get("/api/datasets")
+def get_datasets(db: Session = Depends(get_db)):
+    datasets = db.query(models.Dataset).order_by(models.Dataset.created_at.desc()).all()
+    res = []
+    for d in datasets:
+        count = db.query(models.Review).filter(models.Review.dataset_id == d.id).count()
+        res.append({
+            "id": d.id,
+            "name": d.name,
+            "description": d.description,
+            "created_at": d.created_at,
+            "review_count": count
+        })
+    return {"status": "success", "data": res}
+
+@app.post("/api/datasets")
+def create_dataset(req: DatasetCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.Dataset).filter(models.Dataset.name == req.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Dataset dengan nama ini sudah ada")
+    
+    ds = models.Dataset(name=req.name, description=req.description)
+    db.add(ds)
+    db.commit()
+    db.refresh(ds)
+    return {"status": "success", "data": ds}
+
+@app.delete("/api/datasets/{id}")
+def delete_dataset(id: int, db: Session = Depends(get_db)):
+    ds = db.query(models.Dataset).filter(models.Dataset.id == id).first()
+    if not ds:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    db.delete(ds)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/results")
+def get_saved_results(db: Session = Depends(get_db)):
+    results = db.query(models.SavedResult).order_by(models.SavedResult.created_at.desc()).all()
+    return {"status": "success", "data": results}
+
+@app.post("/api/results")
+def save_result(req: SavedResultCreate, db: Session = Depends(get_db)):
+    import json
+    if not ml_model.is_trained:
+        raise HTTPException(status_code=400, detail="Belum ada model yang dilatih saat ini.")
+        
+    sr = models.SavedResult(
+        title=req.title,
+        description=req.description,
+        dataset_name=req.dataset_name,
+        accuracy=ml_model.metrics.get('accuracy', 0),
+        metrics_json=json.dumps(ml_model.metrics)
+    )
+    db.add(sr)
+    db.commit()
+    db.refresh(sr)
+    return {"status": "success", "data": sr}
+
+@app.put("/api/results/{id}")
+def update_saved_result(id: int, req: SavedResultCreate, db: Session = Depends(get_db)):
+    sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
+    if not sr:
+        raise HTTPException(status_code=404, detail="Result not found")
+    sr.title = req.title
+    sr.description = req.description
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/results/{id}")
+def delete_saved_result(id: int, db: Session = Depends(get_db)):
+    sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
+    if not sr:
+        raise HTTPException(status_code=404, detail="Result not found")
+    db.delete(sr)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/notifications")
+def get_notifications(db: Session = Depends(get_db)):
+    notifs = db.query(models.Notification).order_by(models.Notification.created_at.desc()).limit(20).all()
+    return {"status": "success", "data": notifs}
+
+@app.put("/api/notifications/read")
+def mark_notifications_read(db: Session = Depends(get_db)):
+    db.query(models.Notification).filter(models.Notification.is_read == False).update({models.Notification.is_read: True})
+    db.commit()
+    return {"status": "success"}
