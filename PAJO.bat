@@ -9,9 +9,10 @@ echo.
 cd /d "%~dp0"
 
 echo [1/5] Memeriksa Instalasi Software Dasar...
+
 :: Cek Node.js
 where npm >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
+if errorlevel 1 (
     echo ERROR: Node.js belum terinstal di komputer ini!
     echo Silakan download dan install Node.js dari https://nodejs.org/
     echo Tekan tombol apa saja untuk keluar...
@@ -19,22 +20,21 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b
 )
 
-:: Cek Python
+:: Cek Python (py launcher)
+set PYTHON_CMD=py -3.12
 where py >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
+if errorlevel 1 (
+    :: Cek python command biasa jika py tidak ada
     where python >nul 2>nul
-    if %ERRORLEVEL% NEQ 0 (
+    if errorlevel 1 (
         echo ERROR: Python belum terinstal di komputer ini!
         echo Silakan download dan install Python 3.12 dari https://www.python.org/
         echo Jangan lupa centang "Add Python to PATH" saat instalasi.
         echo Tekan tombol apa saja untuk keluar...
         pause >nul
         exit /b
-    ) else (
-        set PYTHON_CMD=python
     )
-) else (
-    set PYTHON_CMD=py -3.12
+    set PYTHON_CMD=python
 )
 echo Software dasar (Node.js ^& Python) terdeteksi.
 echo.
