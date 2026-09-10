@@ -6,16 +6,10 @@ import MainLayout from './layouts/MainLayout';
 
 // Pages
 import Dashboard from './pages/Dashboard';
-import DataUlasan from './pages/DataUlasan';
-import Preprocessing from './pages/Preprocessing';
+import KelolaData from './pages/KelolaData';
+import DapurAI from './pages/DapurAI';
 import AnalisisSentimen from './pages/AnalisisSentimen';
-import TfIdfNGrams from './pages/TfIdfNGrams';
-import ModelSvm from './pages/ModelSvm';
-import EvaluasiModel from './pages/EvaluasiModel';
-import Visualisasi from './pages/Visualisasi';
-import Kesimpulan from './pages/Kesimpulan';
-import SimpanHasil from './pages/SimpanHasil';
-import DataCollection from './pages/DataCollection';
+import Laporan from './pages/Laporan';
 import Pengaturan from './pages/Pengaturan';
 
 function App() {
@@ -26,16 +20,10 @@ function App() {
         
         <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/ulasan" element={<DataUlasan />} />
-          <Route path="/preprocessing" element={<Preprocessing />} />
-          <Route path="/analisis" element={<AnalisisSentimen />} />
-          <Route path="/tfidf" element={<TfIdfNGrams />} />
-          <Route path="/model" element={<ModelSvm />} />
-          <Route path="/evaluasi" element={<EvaluasiModel />} />
-          <Route path="/visualisasi" element={<Visualisasi />} />
-          <Route path="/kesimpulan" element={<Kesimpulan />} />
-          <Route path="/simpan" element={<SimpanHasil />} />
-          <Route path="/koleksi" element={<DataCollection />} />
+          <Route path="/kelola-data" element={<KelolaData />} />
+          <Route path="/dapur-ai" element={<DapurAI />} />
+          <Route path="/uji-coba" element={<AnalisisSentimen />} />
+          <Route path="/laporan" element={<Laporan />} />
           <Route path="/pengaturan" element={<Pengaturan />} />
         </Route>
         

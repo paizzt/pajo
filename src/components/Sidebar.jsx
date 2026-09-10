@@ -15,17 +15,11 @@ import {
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const menuItems = [
-    { path: '/dashboard', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { path: '/ulasan', name: 'Data Ulasan', icon: <MessageSquareText size={20} /> },
-    { path: '/preprocessing', name: 'Preprocessing', icon: <FlaskConical size={20} /> },
-    { path: '/analisis', name: 'Analisis Sentimen', icon: <BrainCircuit size={20} /> },
-    { path: '/tfidf', name: 'TF-IDF & N-Grams', icon: <Network size={20} /> },
-    { path: '/model', name: 'Model SVM', icon: <BrainCircuit size={20} /> },
-    { path: '/evaluasi', name: 'Evaluasi Model', icon: <BarChart3 size={20} /> },
-    { path: '/visualisasi', name: 'Visualisasi', icon: <BarChart3 size={20} /> },
-    { path: '/kesimpulan', name: 'Kesimpulan', icon: <Lightbulb size={20} /> },
-    { path: '/simpan', name: 'Simpan Hasil', icon: <Save size={20} /> },
-    { path: '/koleksi', name: 'Data Collection', icon: <Download size={20} /> },
+    { path: '/dashboard', name: 'Beranda', icon: <LayoutDashboard size={20} /> },
+    { path: '/kelola-data', name: 'Kelola Data Ulasan', icon: <MessageSquareText size={20} /> },
+    { path: '/dapur-ai', name: 'Pemrosesan Cerdas (AI)', icon: <BrainCircuit size={20} /> },
+    { path: '/uji-coba', name: 'Uji Coba Analisis', icon: <FlaskConical size={20} /> },
+    { path: '/laporan', name: 'Laporan & Kesimpulan', icon: <BarChart3 size={20} /> },
     { path: '/pengaturan', name: 'Pengaturan', icon: <Settings size={20} /> },
   ];
 
