@@ -285,7 +285,7 @@ const AnalisisBaru = () => {
       {step === 2 && (
         <div className="card p-10 shadow-md border border-gray-100 text-center animate-in zoom-in-95">
           <BrainCircuit size={64} className="mx-auto text-primary mb-6 animate-pulse" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Machine Learning Sedang Bekerja</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Proses</h2>
           <p className="text-gray-500 mb-8">Silakan tunggu, sistem sedang membaca, membersihkan teks, dan mengklasifikasikan sentimen secara otomatis.</p>
           
           <div className="max-w-md mx-auto">
