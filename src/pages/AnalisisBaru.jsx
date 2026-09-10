@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Link as LinkIcon, Loader2, BrainCircuit, CheckCircle, AlertTriangle, PieChart, TrendingUp
+  Link as LinkIcon, BrainCircuit, CheckCircle, Target, BarChart3, Table2
 } from 'lucide-react';
-import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import Papa from 'papaparse';
@@ -15,7 +15,6 @@ const AnalisisBaru = () => {
   const [appId, setAppId] = useState('');
   const [count, setCount] = useState(100);
   const [scrapeStatus, setScrapeStatus] = useState('idle'); // idle, loading, success, error
-  const [errorMessage, setErrorMessage] = useState('');
   const [csvFile, setCsvFile] = useState(null);
   
   // === STEP 2 STATES ===
@@ -24,6 +23,8 @@ const AnalisisBaru = () => {
   
   // === STEP 3 STATES ===
   const [reportData, setReportData] = useState(null);
+  const [metricsData, setMetricsData] = useState(null);
+  const [featuresData, setFeaturesData] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
 
@@ -143,8 +144,18 @@ const AnalisisBaru = () => {
 
   const fetchReportData = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/api/dashboard/stats?time=all&sentiment=all');
-      setReportData(res.data);
+      const [statsRes, metricsRes, featuresRes] = await Promise.all([
+        axios.get('http://localhost:8000/api/dashboard/stats?time=all&sentiment=all'),
+        axios.get('http://localhost:8000/api/model/metrics'),
+        axios.get('http://localhost:8000/api/features?limit=20')
+      ]);
+      setReportData(statsRes.data);
+      if (metricsRes.data.status === 'success') {
+        setMetricsData(metricsRes.data.data);
+      }
+      if (featuresRes.data.status === 'success') {
+        setFeaturesData(featuresRes.data.data);
+      }
       setStep(3);
     } catch (err) {
       console.error(err);
@@ -158,12 +169,13 @@ const AnalisisBaru = () => {
     
     setIsSaving(true);
     try {
-      // Simpan Hasil beserta JSON lengkap
+      // Simpan Hasil beserta JSON lengkap (termasuk metrics dan features)
+      const fullReport = { ...reportData, metrics: metricsData, features: featuresData };
       await axios.post('http://localhost:8000/api/results', {
         title: reportTitle,
         description: `Laporan untuk aplikasi: ${appId}`,
         dataset_name: `Dataset ${appId}`,
-        report_data: JSON.stringify(reportData)
+        report_data: JSON.stringify(fullReport)
       });
       
       // Reset Sistem ke 0
@@ -176,6 +188,8 @@ const AnalisisBaru = () => {
       setAppId('');
       setCount(100);
       setReportData(null);
+      setMetricsData(null);
+      setFeaturesData([]);
       setReportTitle('');
       setScrapeStatus('idle');
       
@@ -310,17 +324,37 @@ const AnalisisBaru = () => {
              <p className="text-emerald-600 mt-1">Sistem berhasil memproses <strong>{reportData.stats.total_ulasan}</strong> ulasan dengan akurasi model <strong>{reportData.stats.akurasi_model}</strong>.</p>
           </div>
 
+          {/* METRIK MODEL */}
+          {metricsData && (
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Target size={20} className="text-primary" /> Metrik Evaluasi Model</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: 'Accuracy', value: metricsData.accuracy, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+                  { label: 'Precision', value: metricsData.precision, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+                  { label: 'Recall', value: metricsData.recall, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+                  { label: 'F1-Score', value: metricsData.f1_score, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+                ].map((m, i) => (
+                  <div key={i} className={`card p-5 border ${m.color} text-center`}>
+                    <p className="text-sm font-medium opacity-80">{m.label}</p>
+                    <p className="text-3xl font-bold mt-1">{m.value}%</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              {/* KESIMPULAN */}
              <div className="card p-6 shadow-sm border border-gray-100 flex flex-col justify-center">
-                <h3 className="font-bold text-gray-800 mb-4 text-lg">Kesimpulan Cepat</h3>
+                <h3 className="font-bold text-gray-800 mb-4 text-lg">Kesimpulan</h3>
                 <p className="text-gray-600 leading-relaxed">
                   Sentimen Positif mencapai <strong>{reportData.stats.positif}</strong> ulasan, sedangkan Negatif <strong>{reportData.stats.negatif}</strong> ulasan.
                   Topik yang paling sering dibicarakan adalah: <strong className="text-primary">{reportData.top_words.slice(0,3).map(w=>w.name).join(', ')}</strong>.
                 </p>
              </div>
 
-             {/* PIE CHART MINIMALIS */}
+             {/* PIE CHART */}
              <div className="card p-6 shadow-sm border border-gray-100 h-64">
                 <h3 className="font-bold text-gray-800 text-sm mb-2 text-center">Proporsi Sentimen</h3>
                 <ResponsiveContainer width="100%" height="100%">
@@ -333,6 +367,103 @@ const AnalisisBaru = () => {
                   </RechartsPie>
                 </ResponsiveContainer>
              </div>
+          </div>
+
+          {/* CONFUSION MATRIX */}
+          {metricsData && metricsData.confusion_matrix && metricsData.classes && (
+            <div className="card p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><BarChart3 size={20} className="text-primary" /> Confusion Matrix</h3>
+              <div className="overflow-x-auto">
+                <table className="mx-auto border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="p-3 text-xs text-gray-500 font-semibold" rowSpan={2} colSpan={2}></th>
+                      <th className="p-2 text-center text-xs font-bold text-gray-700 border-b-2 border-gray-200" colSpan={metricsData.classes.length}>Prediksi</th>
+                    </tr>
+                    <tr>
+                      {metricsData.classes.map((cls, i) => (
+                        <th key={i} className="p-3 text-xs font-bold text-gray-700 text-center min-w-[80px]">{cls}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metricsData.confusion_matrix.map((row, ri) => (
+                      <tr key={ri}>
+                        {ri === 0 && (
+                          <td className="p-2 text-xs font-bold text-gray-700 writing-vertical" rowSpan={metricsData.classes.length} style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>Aktual</td>
+                        )}
+                        <td className="p-3 text-xs font-bold text-gray-700 text-right">{metricsData.classes[ri]}</td>
+                        {row.map((val, ci) => {
+                          const maxVal = Math.max(...metricsData.confusion_matrix.flat());
+                          const intensity = maxVal > 0 ? val / maxVal : 0;
+                          const isDiagonal = ri === ci;
+                          const bgColor = isDiagonal 
+                            ? `rgba(16, 185, 129, ${0.15 + intensity * 0.65})` 
+                            : val > 0 ? `rgba(239, 68, 68, ${0.1 + intensity * 0.5})` : 'rgba(243, 244, 246, 0.5)';
+                          return (
+                            <td key={ci} className="p-3 text-center border border-gray-100" style={{ backgroundColor: bgColor }}>
+                              <span className={`text-lg font-bold ${isDiagonal ? 'text-emerald-800' : val > 0 ? 'text-red-700' : 'text-gray-400'}`}>{val}</span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-gray-400 text-center mt-3">Hijau = prediksi benar (diagonal), Merah = prediksi salah</p>
+            </div>
+          )}
+
+          {/* TABEL FITUR TF-IDF */}
+          {featuresData.length > 0 && (
+            <div className="card p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Top 20 Fitur TF-IDF</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left p-3 font-semibold text-gray-600">No</th>
+                      <th className="text-left p-3 font-semibold text-gray-600">Kata/Frasa</th>
+                      <th className="text-right p-3 font-semibold text-gray-600">TF</th>
+                      <th className="text-right p-3 font-semibold text-gray-600">IDF</th>
+                      <th className="text-right p-3 font-semibold text-gray-600">TF-IDF</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {featuresData.slice(0, 20).map((f, i) => (
+                      <tr key={i} className={`border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-emerald-50/30 transition-colors`}>
+                        <td className="p-3 text-gray-400 font-mono text-xs">{i + 1}</td>
+                        <td className="p-3 font-medium text-gray-800">{f.word}</td>
+                        <td className="p-3 text-right text-gray-600 font-mono">{f.tf}</td>
+                        <td className="p-3 text-right text-gray-600 font-mono">{f.idf}</td>
+                        <td className="p-3 text-right font-bold text-primary font-mono">{f.tfidf}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* BAR CHART SENTIMEN */}
+          <div className="card p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Jumlah Ulasan per Sentimen</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={reportData.pie_data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
+                  <Tooltip cursor={{fill: '#f3f4f6'}} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {reportData.pie_data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* SIMPAN & RESET */}

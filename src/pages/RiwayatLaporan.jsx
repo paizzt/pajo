@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Calendar, Loader2, ArrowLeft, PieChart, CheckCircle, AlertTriangle, TrendingUp, X } from 'lucide-react';
-import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { FileText, Calendar, Loader2, PieChart, CheckCircle, AlertTriangle, TrendingUp, Target, BarChart3, Table2 } from 'lucide-react';
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import axios from 'axios';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
 const RiwayatLaporan = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReport, setSelectedReport] = useState(null); // Menyimpan detail laporan yang sedang dilihat (Modal Full)
+  const [selectedReport, setSelectedReport] = useState(null);
 
   useEffect(() => {
     fetchResults();
@@ -29,7 +29,6 @@ const RiwayatLaporan = () => {
   };
 
   const handleOpenReport = (res) => {
-    // Parse the JSON data securely
     try {
       const reportData = res.report_data ? JSON.parse(res.report_data) : null;
       setSelectedReport({ ...res, parsedReportData: reportData });
@@ -55,14 +54,18 @@ const RiwayatLaporan = () => {
       doc.text(`Sentimen Negatif: ${data.stats.negatif}`, 14, 56);
       doc.text(`Sentimen Netral: ${data.stats.netral}`, 14, 62);
       
+      if (data.metrics) {
+        doc.text(`Precision: ${data.metrics.precision}% | Recall: ${data.metrics.recall}% | F1-Score: ${data.metrics.f1_score}%`, 14, 72);
+      }
+
       if (data.top_words && data.top_words.length > 0) {
-        doc.text("Topik Paling Sering Dibahas:", 14, 74);
+        doc.text("Topik Paling Sering Dibahas:", 14, 84);
         const words = data.top_words.map(w => `${w.name} (${w.count})`).join(', ');
         const splitText = doc.splitTextToSize(words, 180);
-        doc.text(splitText, 14, 80);
+        doc.text(splitText, 14, 90);
       }
     } else {
-      doc.text("Detail statistik lengkap tidak tersedia untuk laporan ini karena disimpan sebelum fitur ini dibuat.", 14, 50);
+      doc.text("Detail statistik lengkap tidak tersedia untuk laporan ini.", 14, 50);
     }
 
     doc.save(`Laporan_${report.title.replace(/\s+/g, '_')}.pdf`);
@@ -72,12 +75,16 @@ const RiwayatLaporan = () => {
     return <div className="flex justify-center items-center py-20"><Loader2 className="animate-spin text-primary" size={32} /></div>;
   }
 
-  // --- TAMPILAN FULL REPORT (MODAL/HALAMAN PENUH) ---
+  // --- TAMPILAN FULL REPORT ---
   if (selectedReport) {
     const data = selectedReport.parsedReportData;
     const stats = data?.stats;
     const PIE_DATA = data?.pie_data || [];
     const TOP_WORDS = data?.top_words || [];
+    const METRICS = data?.metrics;
+    const FEATURES = data?.features || [];
+    const CM = METRICS?.confusion_matrix;
+    const CLASSES = METRICS?.classes;
     
     let isPos = true;
     let dominant = "N/A";
@@ -92,7 +99,7 @@ const RiwayatLaporan = () => {
 
     return (
       <div className="max-w-5xl mx-auto space-y-6 pb-12 animate-in slide-in-from-bottom-8">
-        {/* HEADER MODAL */}
+        {/* HEADER */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-200">
           <button onClick={() => setSelectedReport(null)} className="btn btn-secondary font-bold">
             Kembali
@@ -116,10 +123,10 @@ const RiwayatLaporan = () => {
         ) : (
           <>
             {/* KESIMPULAN OTOMATIS */}
-            <div className={`card overflow-hidden shadow-md ${isPos ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' : 'bg-gradient-to-br from-red-500 to-red-700'} text-white`}>
+            <div className={`card overflow-hidden shadow-md ${isPos ? 'bg-emerald-600' : 'bg-red-600'} text-white`}>
               <div className="p-8">
-                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                  {isPos ? <CheckCircle size={28} /> : <AlertTriangle size={28} />} Kesimpulan Otomatis
+                <h2 className="text-2xl font-bold mb-4">
+                  Kesimpulan
                 </h2>
                 <p className="text-xl leading-relaxed font-medium">
                   "Berdasarkan analisis terhadap {stats.total_ulasan} ulasan, respons pengguna dominan bernada <span className="bg-white/20 px-2 py-1 rounded-md font-bold">{dominant}</span> dengan persentase mencapai {Math.max(posPerc, negPerc)}%. 
@@ -135,6 +142,26 @@ const RiwayatLaporan = () => {
                 <div>Netral: {stats.netral}</div>
               </div>
             </div>
+
+            {/* METRIK MODEL */}
+            {METRICS && (
+              <div>
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Target size={20} className="text-primary" /> Metrik Evaluasi Model</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Accuracy', value: METRICS.accuracy, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+                    { label: 'Precision', value: METRICS.precision, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+                    { label: 'Recall', value: METRICS.recall, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+                    { label: 'F1-Score', value: METRICS.f1_score, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+                  ].map((m, i) => (
+                    <div key={i} className={`card p-5 border ${m.color} text-center`}>
+                      <p className="text-sm font-medium opacity-80">{m.label}</p>
+                      <p className="text-3xl font-bold mt-1">{m.value}%</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* VISUALISASI */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -170,6 +197,103 @@ const RiwayatLaporan = () => {
                       })}
                    </div>
                  </div>
+              </div>
+            </div>
+
+            {/* CONFUSION MATRIX */}
+            {CM && CLASSES && (
+              <div className="card p-6 shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><BarChart3 size={20} className="text-primary" /> Confusion Matrix</h3>
+                <div className="overflow-x-auto">
+                  <table className="mx-auto border-collapse">
+                    <thead>
+                      <tr>
+                        <th className="p-3 text-xs text-gray-500 font-semibold" rowSpan={2} colSpan={2}></th>
+                        <th className="p-2 text-center text-xs font-bold text-gray-700 border-b-2 border-gray-200" colSpan={CLASSES.length}>Prediksi</th>
+                      </tr>
+                      <tr>
+                        {CLASSES.map((cls, i) => (
+                          <th key={i} className="p-3 text-xs font-bold text-gray-700 text-center min-w-[80px]">{cls}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {CM.map((row, ri) => (
+                        <tr key={ri}>
+                          {ri === 0 && (
+                            <td className="p-2 text-xs font-bold text-gray-700" rowSpan={CLASSES.length} style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>Aktual</td>
+                          )}
+                          <td className="p-3 text-xs font-bold text-gray-700 text-right">{CLASSES[ri]}</td>
+                          {row.map((val, ci) => {
+                            const maxVal = Math.max(...CM.flat());
+                            const intensity = maxVal > 0 ? val / maxVal : 0;
+                            const isDiagonal = ri === ci;
+                            const bgColor = isDiagonal 
+                              ? `rgba(16, 185, 129, ${0.15 + intensity * 0.65})` 
+                              : val > 0 ? `rgba(239, 68, 68, ${0.1 + intensity * 0.5})` : 'rgba(243, 244, 246, 0.5)';
+                            return (
+                              <td key={ci} className="p-3 text-center border border-gray-100" style={{ backgroundColor: bgColor }}>
+                                <span className={`text-lg font-bold ${isDiagonal ? 'text-emerald-800' : val > 0 ? 'text-red-700' : 'text-gray-400'}`}>{val}</span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-gray-400 text-center mt-3">Hijau = prediksi benar (diagonal), Merah = prediksi salah</p>
+              </div>
+            )}
+
+            {/* TABEL FITUR TF-IDF */}
+            {FEATURES.length > 0 && (
+              <div className="card p-6 shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Top 20 Fitur TF-IDF</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="text-left p-3 font-semibold text-gray-600">No</th>
+                        <th className="text-left p-3 font-semibold text-gray-600">Kata/Frasa</th>
+                        <th className="text-right p-3 font-semibold text-gray-600">TF</th>
+                        <th className="text-right p-3 font-semibold text-gray-600">IDF</th>
+                        <th className="text-right p-3 font-semibold text-gray-600">TF-IDF</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {FEATURES.slice(0, 20).map((f, i) => (
+                        <tr key={i} className={`border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-emerald-50/30 transition-colors`}>
+                          <td className="p-3 text-gray-400 font-mono text-xs">{i + 1}</td>
+                          <td className="p-3 font-medium text-gray-800">{f.word}</td>
+                          <td className="p-3 text-right text-gray-600 font-mono">{f.tf}</td>
+                          <td className="p-3 text-right text-gray-600 font-mono">{f.idf}</td>
+                          <td className="p-3 text-right font-bold text-primary font-mono">{f.tfidf}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* BAR CHART SENTIMEN */}
+            <div className="card p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Jumlah Ulasan per Sentimen</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={PIE_DATA} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
+                    <Tooltip cursor={{fill: '#f3f4f6'}} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      {PIE_DATA.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </>

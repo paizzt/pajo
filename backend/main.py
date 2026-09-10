@@ -347,34 +347,31 @@ def get_confusion_details(actual: str, predicted: str, db: Session = Depends(get
 
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session = Depends(get_db)):
-    query = db.query(models.Review)
+    base_query = db.query(models.Review)
     
     # Time filtering
     if time != 'all':
         now = datetime.datetime.now()
         if time == 'today':
             date_filter = now.strftime('%Y-%m-%d')
-            query = query.filter(models.Review.date.like(f"{date_filter}%"))
+            base_query = base_query.filter(models.Review.date.like(f"{date_filter}%"))
         elif time == 'week':
             week_ago = now - datetime.timedelta(days=7)
-            query = query.filter(models.Review.date >= week_ago.strftime('%Y-%m-%d'))
+            base_query = base_query.filter(models.Review.date >= week_ago.strftime('%Y-%m-%d'))
         elif time == 'month':
             month_filter = now.strftime('%Y-%m')
-            query = query.filter(models.Review.date.like(f"{month_filter}%"))
+            base_query = base_query.filter(models.Review.date.like(f"{month_filter}%"))
+
+    # Count sentiments from base query (before sentiment filter)
+    pos = base_query.filter(models.Review.sentiment_label == "POSITIF").count()
+    neg = base_query.filter(models.Review.sentiment_label == "NEGATIF").count()
+    net = base_query.filter(models.Review.sentiment_label == "NETRAL").count()
             
-    # Sentiment filtering
+    # Apply sentiment filter for total count
     if sentiment != 'all':
-        query = query.filter(models.Review.sentiment_label == sentiment)
-        
-    total = query.count()
-    
-    pos_query = query.filter(models.Review.sentiment_label == "POSITIF")
-    neg_query = query.filter(models.Review.sentiment_label == "NEGATIF")
-    net_query = query.filter(models.Review.sentiment_label == "NETRAL")
-    
-    pos = pos_query.count()
-    neg = neg_query.count()
-    net = net_query.count()
+        total = base_query.filter(models.Review.sentiment_label == sentiment).count()
+    else:
+        total = pos + neg + net
 
     pie_data = [
         {"name": "Positif", "value": pos, "color": "#10b981"},

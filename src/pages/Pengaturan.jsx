@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, User, Sliders, Database, Palette } from 'lucide-react';
+import { Save, Sliders, Database, Palette } from 'lucide-react';
 
 const Pengaturan = () => {
   const [activeTab, setActiveTab] = useState('preprocessing');
@@ -123,9 +123,9 @@ const Pengaturan = () => {
                 
                 <div className="pt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Data Ditampilkan Per Halaman (Tabel)</label>
-                  <select className="input-field max-w-xs">
+                  <select className="input-field max-w-xs" defaultValue="25">
                     <option value="10">10 Baris</option>
-                    <option value="25" selected>25 Baris</option>
+                    <option value="25">25 Baris</option>
                     <option value="50">50 Baris</option>
                     <option value="100">100 Baris</option>
                   </select>

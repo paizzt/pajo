@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Menu, User, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Search, Bell, Menu, X } from 'lucide-react';
 import axios from 'axios';
 
 const Header = ({ toggleSidebar }) => {
-  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [hasUnread, setHasUnread] = useState(false);

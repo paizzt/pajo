@@ -4,3 +4,7 @@ pydantic
 google-play-scraper
 sqlalchemy
 scikit-learn
+Sastrawi
+nltk
+pandas
+joblib

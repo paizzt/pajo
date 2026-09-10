@@ -4,13 +4,8 @@ import {
   LayoutDashboard, 
   MessageSquareText, 
   BrainCircuit, 
-  FlaskConical,
   BarChart3,
-  Network,
-  Settings,
-  Download,
-  Lightbulb,
-  Save
+  Settings
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
