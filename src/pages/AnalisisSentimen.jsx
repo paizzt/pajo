@@ -116,9 +116,9 @@ const AnalisisSentimen = () => {
                   <p className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Tingkat Keyakinan AI:</p>
                   <div className="flex gap-4 items-center">
                     <div className="flex-1 bg-gray-100 h-3 rounded-full overflow-hidden flex">
-                      <div className="bg-emerald-500 h-full" style={{ width: \`\${result.probabilities.positive}%\` }} title="Positif"></div>
-                      <div className="bg-gray-400 h-full" style={{ width: \`\${result.probabilities.neutral}%\` }} title="Netral"></div>
-                      <div className="bg-red-500 h-full" style={{ width: \`\${result.probabilities.negative}%\` }} title="Negatif"></div>
+                      <div className="bg-emerald-500 h-full" style={{ width: `${result.probabilities.positive}%` }} title="Positif"></div>
+                      <div className="bg-gray-400 h-full" style={{ width: `${result.probabilities.neutral}%` }} title="Netral"></div>
+                      <div className="bg-red-500 h-full" style={{ width: `${result.probabilities.negative}%` }} title="Negatif"></div>
                     </div>
                     <span className="font-bold text-gray-700 text-sm">{result.confidence}% Yakin</span>
                   </div>
