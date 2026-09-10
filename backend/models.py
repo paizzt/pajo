@@ -39,6 +39,7 @@ class SavedResult(Base):
     accuracy = Column(Float)
     metrics_json = Column(String)
     dataset_name = Column(String) # Store name of dataset used
+    report_data = Column(String, nullable=True) # Menyimpan JSON laporan lengkap (pie_data, top_words, dll)
 
 class Notification(Base):
     __tablename__ = "notifications"

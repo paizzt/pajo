@@ -62,6 +62,7 @@ class SavedResultCreate(BaseModel):
     title: str
     description: Optional[str] = None
     dataset_name: Optional[str] = None
+    report_data: Optional[str] = None
 
 class TrainRequest(BaseModel):
     c: float = 1.0
@@ -461,12 +462,36 @@ def save_result(req: SavedResultCreate, db: Session = Depends(get_db)):
         description=req.description,
         dataset_name=req.dataset_name,
         accuracy=ml_model.metrics.get('accuracy', 0),
-        metrics_json=json.dumps(ml_model.metrics)
+        metrics_json=json.dumps(ml_model.metrics),
+        report_data=req.report_data
     )
     db.add(sr)
     db.commit()
     db.refresh(sr)
     return {"status": "success", "data": sr}
+
+@app.delete("/api/reset")
+def reset_system(db: Session = Depends(get_db)):
+    try:
+        # Delete all reviews and datasets
+        db.query(models.Review).delete()
+        db.query(models.Dataset).delete()
+        db.commit()
+        
+        # Reset ML Model
+        ml_model.is_trained = False
+        ml_model.metrics = None
+        ml_model.model = None
+        ml_model.vectorizer = None
+        if os.path.exists(ml_model.model_path):
+            os.remove(ml_model.model_path)
+        if os.path.exists(ml_model.vectorizer_path):
+            os.remove(ml_model.vectorizer_path)
+            
+        return {"status": "success", "message": "Sistem berhasil di-reset ke 0"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/results/{id}")
 def update_saved_result(id: int, req: SavedResultCreate, db: Session = Depends(get_db)):

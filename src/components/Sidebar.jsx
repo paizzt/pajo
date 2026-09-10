@@ -16,10 +16,9 @@ import {
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const menuItems = [
     { path: '/dashboard', name: 'Beranda', icon: <LayoutDashboard size={20} /> },
-    { path: '/kelola-data', name: 'Kelola Data Ulasan', icon: <MessageSquareText size={20} /> },
-    { path: '/dapur-ai', name: 'Pemrosesan Cerdas (AI)', icon: <BrainCircuit size={20} /> },
-    { path: '/uji-coba', name: 'Uji Coba Analisis', icon: <FlaskConical size={20} /> },
-    { path: '/laporan', name: 'Laporan & Kesimpulan', icon: <BarChart3 size={20} /> },
+    { path: '/analisis-baru', name: 'Buat Analisis Baru', icon: <BrainCircuit size={20} /> },
+    { path: '/riwayat', name: 'Riwayat Laporan', icon: <BarChart3 size={20} /> },
+    { path: '/uji-coba', name: 'Uji Coba AI (Chat)', icon: <MessageSquareText size={20} /> },
     { path: '/pengaturan', name: 'Pengaturan', icon: <Settings size={20} /> },
   ];
 
