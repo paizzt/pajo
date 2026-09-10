@@ -5,6 +5,7 @@ import {
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import Papa from 'papaparse';
 
 const AnalisisBaru = () => {
   const [step, setStep] = useState(1); // 1: Input Data, 2: Proses AI, 3: Laporan
@@ -15,6 +16,7 @@ const AnalisisBaru = () => {
   const [count, setCount] = useState(100);
   const [scrapeStatus, setScrapeStatus] = useState('idle'); // idle, loading, success, error
   const [errorMessage, setErrorMessage] = useState('');
+  const [csvFile, setCsvFile] = useState(null);
   
   // === STEP 2 STATES ===
   const [trainProgress, setTrainProgress] = useState(0);
@@ -62,18 +64,61 @@ const AnalisisBaru = () => {
     if (inputType === 'playstore' && !appId) {
       return Swal.fire('Perhatian', 'ID Aplikasi wajib diisi', 'warning');
     }
+    if (inputType === 'upload' && !csvFile) {
+      return Swal.fire('Perhatian', 'File CSV wajib diunggah', 'warning');
+    }
     
     try {
       setScrapeStatus('loading');
       
-      // 1. Ambil Data
-      const scrapeRes = await axios.post('http://localhost:8000/api/scrape', {
-        app_id: appId, count: Number(count), lang: 'id', country: 'id'
-      });
+      let reviewsData = [];
+      let datasetName = '';
+      
+      if (inputType === 'playstore') {
+        // 1. Ambil Data Play Store
+        const scrapeRes = await axios.post('http://localhost:8000/api/scrape', {
+          app_id: appId, count: Number(count), lang: 'id', country: 'id'
+        });
+        reviewsData = scrapeRes.data.data;
+        datasetName = `Dataset ${appId}`;
+      } else {
+        // 1. Parsing CSV
+        reviewsData = await new Promise((resolve, reject) => {
+          Papa.parse(csvFile, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              const data = results.data;
+              if (data.length === 0) return reject(new Error("File CSV kosong."));
+              
+              const contentKey = Object.keys(data[0]).find(k => ['content', 'text', 'ulasan', 'review', 'teks'].includes(k.toLowerCase()));
+              const scoreKey = Object.keys(data[0]).find(k => ['score', 'rating', 'skor', 'nilai'].includes(k.toLowerCase()));
+              
+              if (!contentKey || !scoreKey) {
+                return reject(new Error("File CSV harus memiliki kolom 'ulasan/content' dan 'rating/score'."));
+              }
+              
+              const formatted = data.map((row, idx) => ({
+                id: `csv_${Date.now()}_${idx}`,
+                username: row['userName'] || row['username'] || row['nama'] || `user_${idx}`,
+                content: row[contentKey],
+                score: parseInt(row[scoreKey]) || 3,
+                date: row['date'] || row['tanggal'] || new Date().toISOString(),
+                thumbs_up: parseInt(row['thumbsUpCount'] || row['thumbs_up'] || 0)
+              }));
+              resolve(formatted);
+            },
+            error: (err) => reject(new Error("Gagal membaca file CSV."))
+          });
+        });
+        datasetName = `Upload ${csvFile.name}`;
+      }
       
       // 2. Simpan Data
       await axios.post('http://localhost:8000/api/reviews/save', {
-        app_id: appId, dataset_name: `Dataset ${appId}`, reviews: scrapeRes.data.data
+        app_id: inputType === 'playstore' ? appId : 'csv_upload', 
+        dataset_name: datasetName, 
+        reviews: reviewsData
       });
       
       setScrapeStatus('success');
@@ -90,8 +135,9 @@ const AnalisisBaru = () => {
       
     } catch (err) {
       setScrapeStatus('error');
-      setErrorMessage(err.response?.data?.detail || "Gagal mengambil data. Pastikan koneksi dan ID Aplikasi benar.");
-      Swal.fire({ icon: 'error', title: 'Gagal!', text: errorMessage });
+      const errDetail = err.response?.data?.detail || err.message || "Gagal mengambil data. Pastikan koneksi dan file benar.";
+      setErrorMessage(errDetail);
+      Swal.fire({ icon: 'error', title: 'Gagal!', text: errDetail });
     }
   };
 
@@ -206,9 +252,20 @@ const AnalisisBaru = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-4 max-w-lg mx-auto bg-gray-50 p-6 rounded-xl border border-gray-200 text-center">
-              <p className="text-sm font-medium text-gray-700">Fitur Upload CSV segera hadir.</p>
-              <p className="text-xs text-gray-500">Silakan gunakan mode Play Store untuk sementara.</p>
+            <div className="space-y-4 max-w-lg mx-auto bg-gray-50 p-6 rounded-xl border border-gray-200">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Upload File CSV Anda</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-all">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Klik untuk memilih file</span> atau tarik file ke sini</p>
+                      <p className="text-xs text-gray-500">Mendukung format .csv</p>
+                    </div>
+                    <input type="file" className="hidden" accept=".csv" onChange={(e) => setCsvFile(e.target.files[0])} />
+                  </label>
+                </div>
+                {csvFile && <p className="text-sm text-emerald-600 mt-2 font-semibold text-center">File terpilih: {csvFile.name}</p>}
+              </div>
             </div>
           )}
 
@@ -216,7 +273,7 @@ const AnalisisBaru = () => {
             <button 
               className="btn btn-primary px-8 py-3 text-lg"
               onClick={handleStartScrapeAndTrain}
-              disabled={scrapeStatus === 'loading' || (inputType === 'upload')}
+              disabled={scrapeStatus === 'loading' || (inputType === 'upload' && !csvFile) || (inputType === 'playstore' && !appId)}
             >
               {scrapeStatus === 'loading' ? 'Loading' : 'Proses'}
             </button>
