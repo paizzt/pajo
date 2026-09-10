@@ -51,7 +51,7 @@ const AnalisisSentimen = () => {
     <div className="space-y-6 max-w-4xl mx-auto pb-10">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 flex justify-center items-center gap-3">
-          <Bot size={36} className="text-primary" /> Uji Coba Kecerdasan Buatan
+          <Bot size={36} className="text-primary" /> Chat
         </h1>
         <p className="text-gray-500 mt-2">Ketik kalimat apapun dan lihat bagaimana robot AI kami menebak perasaan (sentimen) dari kalimat tersebut.</p>
       </div>

@@ -18,7 +18,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/dashboard', name: 'Beranda', icon: <LayoutDashboard size={20} /> },
     { path: '/analisis-baru', name: 'Buat Analisis Baru', icon: <BrainCircuit size={20} /> },
     { path: '/riwayat', name: 'Riwayat Laporan', icon: <BarChart3 size={20} /> },
-    { path: '/uji-coba', name: 'Uji Coba AI (Chat)', icon: <MessageSquareText size={20} /> },
+    { path: '/uji-coba', name: 'Chat', icon: <MessageSquareText size={20} /> },
     { path: '/pengaturan', name: 'Pengaturan', icon: <Settings size={20} /> },
   ];
 

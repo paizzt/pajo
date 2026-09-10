@@ -150,7 +150,7 @@ const AnalisisBaru = () => {
       <div className={`w-12 sm:w-24 h-1 mx-2 ${step >= 2 ? 'bg-primary' : 'bg-gray-200'}`}></div>
       <div className={`flex items-center ${step >= 2 ? 'text-primary' : 'text-gray-400'}`}>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 ${step >= 2 ? 'border-primary bg-emerald-50' : 'border-gray-300'}`}>2</div>
-        <span className="ml-2 font-medium hidden sm:inline">Proses AI</span>
+        <span className="ml-2 font-medium hidden sm:inline">Proses</span>
       </div>
       <div className={`w-12 sm:w-24 h-1 mx-2 ${step >= 3 ? 'bg-primary' : 'bg-gray-200'}`}></div>
       <div className={`flex items-center ${step >= 3 ? 'text-primary' : 'text-gray-400'}`}>
@@ -228,7 +228,7 @@ const AnalisisBaru = () => {
       {step === 2 && (
         <div className="card p-10 shadow-md border border-gray-100 text-center animate-in zoom-in-95">
           <BrainCircuit size={64} className="mx-auto text-primary mb-6 animate-pulse" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Kecerdasan Buatan Sedang Bekerja</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Machine Learning Sedang Bekerja</h2>
           <p className="text-gray-500 mb-8">Silakan tunggu, sistem sedang membaca, membersihkan teks, dan mengklasifikasikan sentimen secara otomatis.</p>
           
           <div className="max-w-md mx-auto">
