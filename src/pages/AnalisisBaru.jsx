@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Download, UploadCloud, Link as LinkIcon, Loader2, ArrowRight, BrainCircuit, CheckCircle, Save, AlertTriangle, PieChart, TrendingUp, RotateCcw
+  Link as LinkIcon, Loader2, BrainCircuit, CheckCircle, AlertTriangle, PieChart, TrendingUp
 } from 'lucide-react';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import axios from 'axios';
@@ -178,18 +178,16 @@ const AnalisisBaru = () => {
 
           <div className="grid grid-cols-2 gap-4 mb-8">
             <button 
-              className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${inputType === 'playstore' ? 'border-primary bg-emerald-50/50 text-primary' : 'border-gray-200 hover:border-emerald-300 text-gray-500'}`}
+              className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${inputType === 'playstore' ? 'border-primary bg-blue-50/50 text-primary' : 'border-gray-200 text-gray-500'}`}
               onClick={() => setInputType('playstore')}
             >
-              <Download size={32} />
-              <span className="font-semibold">Ambil dari Play Store</span>
+              <span className="font-semibold">Playstore</span>
             </button>
             <button 
-              className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${inputType === 'upload' ? 'border-primary bg-emerald-50/50 text-primary' : 'border-gray-200 hover:border-emerald-300 text-gray-500'}`}
+              className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${inputType === 'upload' ? 'border-primary bg-blue-50/50 text-primary' : 'border-gray-200 text-gray-500'}`}
               onClick={() => setInputType('upload')}
             >
-              <UploadCloud size={32} />
-              <span className="font-semibold">Upload File CSV</span>
+              <span className="font-semibold">Upload</span>
             </button>
           </div>
 
@@ -209,7 +207,6 @@ const AnalisisBaru = () => {
             </div>
           ) : (
             <div className="space-y-4 max-w-lg mx-auto bg-gray-50 p-6 rounded-xl border border-gray-200 text-center">
-              <UploadCloud size={48} className="mx-auto text-gray-400 mb-2" />
               <p className="text-sm font-medium text-gray-700">Fitur Upload CSV segera hadir.</p>
               <p className="text-xs text-gray-500">Silakan gunakan mode Play Store untuk sementara.</p>
             </div>
@@ -217,11 +214,11 @@ const AnalisisBaru = () => {
 
           <div className="mt-8 flex justify-end">
             <button 
-              className="btn btn-primary px-8 py-3 text-lg flex items-center gap-2"
+              className="btn btn-primary px-8 py-3 text-lg"
               onClick={handleStartScrapeAndTrain}
               disabled={scrapeStatus === 'loading' || (inputType === 'upload')}
             >
-              {scrapeStatus === 'loading' ? <><Loader2 size={20} className="animate-spin" /> Menyiapkan...</> : <>Mulai Proses Analisis <ArrowRight size={20} /></>}
+              {scrapeStatus === 'loading' ? 'Loading' : 'Proses'}
             </button>
           </div>
         </div>
@@ -296,16 +293,14 @@ const AnalisisBaru = () => {
                 />
               </div>
               <button 
-                className="btn btn-primary w-full py-4 text-lg flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all"
+                className="btn btn-primary w-full py-4 text-lg font-bold"
                 onClick={handleSaveAndReset}
                 disabled={isSaving || !reportTitle}
               >
-                {isSaving ? <Loader2 className="animate-spin" /> : <Save size={24} />} 
-                {isSaving ? 'Menyimpan...' : 'Simpan Laporan & Selesai'}
+                {isSaving ? 'Loading' : 'Simpan'}
               </button>
               <p className="text-xs text-center text-gray-500 mt-2">
-                <RotateCcw size={12} className="inline mr-1"/>
-                Sistem akan di-reset ke 0 setelah disimpan agar siap untuk proyek berikutnya. Laporan bisa dilihat selamanya di menu "Riwayat Laporan".
+                Data akan otomatis di-reset setelah disimpan.
               </p>
             </div>
           </div>

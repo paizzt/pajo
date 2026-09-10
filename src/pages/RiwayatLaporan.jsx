@@ -94,11 +94,11 @@ const RiwayatLaporan = () => {
       <div className="max-w-5xl mx-auto space-y-6 pb-12 animate-in slide-in-from-bottom-8">
         {/* HEADER MODAL */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-          <button onClick={() => setSelectedReport(null)} className="btn btn-secondary flex items-center gap-2">
-            <ArrowLeft size={18} /> Kembali ke Riwayat
+          <button onClick={() => setSelectedReport(null)} className="btn btn-secondary font-bold">
+            Kembali
           </button>
-          <button onClick={() => exportPDF(selectedReport)} className="btn btn-primary flex items-center gap-2">
-            <Download size={18} /> Unduh PDF
+          <button onClick={() => exportPDF(selectedReport)} className="btn btn-primary font-bold">
+            Unduh
           </button>
         </div>
 
@@ -215,7 +215,7 @@ const RiwayatLaporan = () => {
               
               <div className="border-t border-gray-100 pt-4 flex items-center justify-between text-xs text-gray-400 font-medium">
                 <span className="flex items-center gap-1"><Calendar size={14} /> {new Date(res.created_at + 'Z').toLocaleDateString('id-ID')}</span>
-                <span className="text-primary group-hover:underline">Lihat Detail →</span>
+                <span className="text-primary font-bold">Buka</span>
               </div>
             </div>
           ))}

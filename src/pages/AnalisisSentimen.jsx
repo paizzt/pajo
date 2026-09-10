@@ -127,9 +127,9 @@ const AnalisisSentimen = () => {
                 {/* Tombol Tampilkan Detail Teknis */}
                 <button 
                   onClick={() => setShowNerdStats(!showNerdStats)}
-                  className="mt-4 text-xs font-semibold text-primary hover:text-primary-dark underline flex items-center gap-1"
+                  className="mt-4 text-xs font-semibold text-primary hover:underline"
                 >
-                  <Info size={14} /> {showNerdStats ? 'Sembunyikan' : 'Lihat'} Proses Pemikiran AI
+                  {showNerdStats ? 'Sembunyikan' : 'Detail'}
                 </button>
 
                 {/* Detail Teknis (Nerd Stats) */}
@@ -172,10 +172,10 @@ const AnalisisSentimen = () => {
             />
             <button 
               type="submit"
-              className="absolute right-2 bg-primary hover:bg-primary-dark text-white p-2.5 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+              className="absolute right-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-full transition-colors disabled:opacity-50 text-sm font-semibold"
               disabled={!text.trim() || loading}
             >
-              <Send size={18} className="ml-0.5" />
+              Kirim
             </button>
           </form>
         </div>
