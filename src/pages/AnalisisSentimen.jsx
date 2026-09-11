@@ -16,13 +16,20 @@ const AnalisisSentimen = () => {
     setLoading(true);
     try {
       const response = await axios.post('http://localhost:8000/api/analyze', { text });
-      setResult(response.data.data);
+      if (response.data.status === 'untrained') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sistem Belum Siap',
+          text: response.data.message || "Sistem belum dilatih. Silakan latih sistem terlebih dahulu di halaman Analisis Baru.",
+        });
+      } else {
+        setResult(response.data.data);
+      }
     } catch (err) {
-      console.error(err);
       Swal.fire({
         icon: 'error',
         title: 'Gagal!',
-        text: err.response?.data?.detail || "Terjadi kesalahan saat menganalisis sentimen.",
+        text: err.response?.data?.detail || "Terjadi kesalahan saat menguji sentimen.",
       });
     } finally {
       setLoading(false);
@@ -56,14 +63,7 @@ const AnalisisSentimen = () => {
         {/* CHAT AREA */}
         <div className="bg-slate-50 min-h-[350px] p-6 flex flex-col gap-4">
           
-          {/* Pesan Sambutan */}
-          {!result && !loading && (
-            <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4">
-              <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 max-w-[85%] text-gray-700 text-sm">
-                Halo! Coba ketik sesuatu di bawah, misalnya <strong>"Aplikasinya bagus banget, saya suka!"</strong> atau <strong>"Sering error dan lemot, tolong perbaiki."</strong>, lalu tekan kirim.
-              </div>
-            </div>
-          )}
+          {/* Pesan Sambutan dihapus sesuai permintaan */}
 
           {/* Pesan User */}
           {result && (

@@ -132,8 +132,18 @@ export const AnalysisProvider = ({ children }) => {
       setTrainStatusMsg('Menyiapkan data...');
       
       // 3. Mulai Training
+      let ngram = '(1,3)';
+      try {
+        const setRes = await axios.get('http://localhost:8000/api/settings');
+        if (setRes.data && setRes.data.data && setRes.data.data.ngram_range) {
+          ngram = setRes.data.data.ngram_range;
+        }
+      } catch(e) {
+        console.warn("Gagal memuat pengaturan N-Gram, menggunakan default (1,3)");
+      }
+
       await axios.post('http://localhost:8000/api/model/train', {
-        c: 1.0, kernel: 'linear', ngram_range: '(1,3)', max_features: 1500, dataset_id: null
+        c: 1.0, kernel: 'linear', ngram_range: ngram, max_features: 1500, dataset_id: null
       });
       
     } catch (err) {

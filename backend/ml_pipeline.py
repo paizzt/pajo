@@ -34,14 +34,21 @@ def get_stopwords():
         negation_words = {"tidak", "bukan", "belum", "jangan", "kurang", "tanpa", "tak", "tiada", "enggan"}
         stop_words = base_stopwords - negation_words
         
+        custom_stopwords_str = "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din"
         if setting and setting.value:
-            customs = [w.strip() for w in setting.value.split(',')]
+            custom_stopwords_str = setting.value
+            
+        if custom_stopwords_str:
+            customs = [w.strip() for w in custom_stopwords_str.split(',')]
             stop_words.update(customs)
             
         _cached_stopwords = stop_words
         return stop_words
     except Exception:
-        return set(stopwords.words('indonesian')) - {"tidak", "bukan", "belum", "jangan", "kurang", "tanpa", "tak", "tiada", "enggan"}
+        stop_words = set(stopwords.words('indonesian')) - {"tidak", "bukan", "belum", "jangan", "kurang", "tanpa", "tak", "tiada", "enggan"}
+        default_customs = [w.strip() for w in "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din".split(',')]
+        stop_words.update(default_customs)
+        return stop_words
     finally:
         db.close()
 
@@ -135,7 +142,7 @@ class SentimentModel:
             self.training_status = "Melatih model Support Vector Machine..."
             self.training_progress = 90
             print("Training model...")
-            self.model = SVC(C=C, kernel=kernel, probability=True)
+            self.model = SVC(C=C, kernel=kernel, probability=True, class_weight='balanced')
             self.model.fit(X, labels)
             
             # Save model

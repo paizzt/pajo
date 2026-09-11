@@ -120,6 +120,8 @@ def scrape_playstore(req: ScrapeRequest):
             "total_extracted": len(formatted_reviews),
             "data": formatted_reviews
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -180,15 +182,24 @@ def get_reviews(db: Session = Depends(get_db), limit: int = 100):
     return {"data": formatted, "total": len(formatted)}
 
 @app.post("/api/analyze")
-def analyze_text(req: AnalyzeRequest):
+def analyze_text(req: AnalyzeRequest, db: Session = Depends(get_db)):
     try:
         if not req.text.strip():
             raise HTTPException(status_code=400, detail="Teks tidak boleh kosong")
+        
+        # Cek apakah ada laporan tersimpan di Arsip Riwayat Laporan
+        saved_count = db.query(models.SavedResult).count()
+        if saved_count == 0:
+            return {"status": "untrained", "message": "Belum ada laporan tersimpan di Arsip Riwayat Laporan. Silakan lakukan analisis dan simpan laporannya terlebih dahulu."}
+            
+        if not ml_model.is_trained:
+            return {"status": "untrained", "message": "Model belum dilatih. Silakan latih model terlebih dahulu di halaman Analisis Baru."}
+            
         result = ml_model.predict(req.text)
         return {"status": "success", "data": result}
+    except HTTPException:
+        raise
     except Exception as e:
-        if "belum dilatih" in str(e).lower() or "not trained" in str(e).lower():
-            raise HTTPException(status_code=400, detail=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/features")
@@ -196,6 +207,8 @@ def get_features(limit: int = 50):
     try:
         features = ml_model.get_top_features(n=limit)
         return {"status": "success", "data": features}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -217,6 +230,8 @@ def background_train_wrapper(texts, labels, C, kernel, ngram_range, max_features
             db.commit()
         finally:
             db.close()
+    except HTTPException:
+        raise
     except Exception as e:
         db = db_factory()
         try:
@@ -253,10 +268,13 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
             db.close()
         
         # Parse ngram_range
-        n_tuple = (1,1)
-        if req.ngram_range == '(1,2)': n_tuple = (1,2)
-        elif req.ngram_range == '(1,3)': n_tuple = (1,3)
-        elif req.ngram_range == '(2,2)': n_tuple = (2,2)
+        import ast
+        try:
+            n_tuple = ast.literal_eval(req.ngram_range)
+            if not isinstance(n_tuple, tuple) or len(n_tuple) != 2:
+                n_tuple = (1,3)
+        except:
+            n_tuple = (1,3)
         
         # Dispatch background task
         background_tasks.add_task(
@@ -270,6 +288,8 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
             db_factory=SessionLocal
         )
         return {"status": "processing", "message": "Proses training dimulai di latar belakang..."}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -287,6 +307,8 @@ def get_metrics():
         if not ml_model.is_trained:
             return {"status": "error", "detail": "Model is not trained yet"}
         return {"status": "success", "data": ml_model.metrics}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -331,6 +353,8 @@ def get_model_status():
                 "ngram_range": ngram
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -502,17 +526,19 @@ def reset_system(db: Session = Depends(get_db)):
         db.query(models.Dataset).delete()
         db.commit()
         
-        # Reset ML Model
-        ml_model.is_trained = False
-        ml_model.metrics = None
-        ml_model.model = None
-        ml_model.vectorizer = None
-        if os.path.exists(ml_model.model_path):
-            os.remove(ml_model.model_path)
-        if os.path.exists(ml_model.vectorizer_path):
-            os.remove(ml_model.vectorizer_path)
+        # DO NOT Reset ML Model anymore so Chat still works!
+        # ml_model.is_trained = False
+        # ml_model.metrics = None
+        # ml_model.model = None
+        # ml_model.vectorizer = None
+        # if os.path.exists(ml_model.model_path):
+        #     os.remove(ml_model.model_path)
+        # if os.path.exists(ml_model.vectorizer_path):
+        #     os.remove(ml_model.vectorizer_path)
             
-        return {"status": "success", "message": "Sistem berhasil di-reset ke 0"}
+        return {"status": "success", "message": "Data sementara berhasil dikosongkan (Model AI dipertahankan)."}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -553,7 +579,8 @@ def get_settings(db: Session = Depends(get_db)):
     default_settings = {
         "confidence_threshold": "60",
         "custom_stopwords": "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din",
-        "auto_clean": "true"
+        "auto_clean": "true",
+        "ngram_range": "(1,3)"
     }
     
     result = default_settings.copy()
@@ -707,17 +734,19 @@ def reset_system(db: Session = Depends(get_db)):
         db.query(models.Dataset).delete()
         db.commit()
         
-        # Reset ML Model
-        ml_model.is_trained = False
-        ml_model.metrics = None
-        ml_model.model = None
-        ml_model.vectorizer = None
-        if os.path.exists(ml_model.model_path):
-            os.remove(ml_model.model_path)
-        if os.path.exists(ml_model.vectorizer_path):
-            os.remove(ml_model.vectorizer_path)
+        # DO NOT Reset ML Model anymore so Chat still works!
+        # ml_model.is_trained = False
+        # ml_model.metrics = None
+        # ml_model.model = None
+        # ml_model.vectorizer = None
+        # if os.path.exists(ml_model.model_path):
+        #     os.remove(ml_model.model_path)
+        # if os.path.exists(ml_model.vectorizer_path):
+        #     os.remove(ml_model.vectorizer_path)
             
-        return {"status": "success", "message": "Sistem berhasil di-reset ke 0"}
+        return {"status": "success", "message": "Data sementara berhasil dikosongkan (Model AI dipertahankan)."}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -758,7 +787,8 @@ def get_settings(db: Session = Depends(get_db)):
     default_settings = {
         "confidence_threshold": "60",
         "custom_stopwords": "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din",
-        "auto_clean": "true"
+        "auto_clean": "true",
+        "ngram_range": "(1,3)"
     }
     for s in settings:
         default_settings[s.key] = s.value

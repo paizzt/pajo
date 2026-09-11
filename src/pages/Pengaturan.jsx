@@ -12,6 +12,7 @@ const Pengaturan = () => {
     confidence_threshold: "60",
     custom_stopwords: "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din",
     auto_clean: "true",
+    ngram_range: "(1,3)",
     export_format: "csv",
     export_date: "true",
     export_metadata: "true",
@@ -120,6 +121,19 @@ const Pengaturan = () => {
                     className="input-field text-sm font-mono" 
                   />
                   <p className="text-xs text-gray-500 mt-2">Pisahkan dengan koma. Kata-kata ini akan diabaikan saat ekstraksi fitur.</p>
+                </div>
+                
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">N-Gram Range</label>
+                  <p className="text-xs text-gray-500 mb-2">Pilih kombinasi urutan kata (N-Gram) yang akan diekstraksi.</p>
+                  <select name="ngram_range" value={settings.ngram_range} onChange={handleChange} className="input-field max-w-xs">
+                    <option value="(1,1)">Unigram Saja (1 Kata)</option>
+                    <option value="(1,2)">Unigram & Bigram (1-2 Kata)</option>
+                    <option value="(1,3)">Unigram, Bigram, Trigram (1-3 Kata)</option>
+                    <option value="(2,2)">Bigram Saja (2 Kata)</option>
+                    <option value="(2,3)">Bigram & Trigram (2-3 Kata)</option>
+                    <option value="(3,3)">Trigram Saja (3 Kata)</option>
+                  </select>
                 </div>
                 
                 <div className="pt-2 flex items-center">
