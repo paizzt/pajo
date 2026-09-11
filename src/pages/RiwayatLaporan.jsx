@@ -135,8 +135,8 @@ const RiwayatLaporan = () => {
     return (
       <div className="max-w-5xl mx-auto space-y-6 pb-12 animate-in slide-in-from-bottom-8">
         {/* HEADER */}
-        <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-          <button onClick={() => setSelectedReport(null)} className="btn btn-secondary font-bold">
+        <div className="flex flex-col sm:flex-row items-center justify-between pb-4 border-b border-gray-200 gap-4">
+          <button onClick={() => setSelectedReport(null)} className="btn btn-secondary font-bold w-full sm:w-auto">
             Kembali
           </button>
           <div className="flex gap-2">
@@ -150,8 +150,8 @@ const RiwayatLaporan = () => {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{selectedReport.title}</h1>
-          <p className="text-gray-500 mt-2"><Calendar size={14} className="inline mr-1" /> {new Date(selectedReport.created_at + 'Z').toLocaleString('id-ID')} | Akurasi AI: {selectedReport.accuracy}%</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{selectedReport.title}</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-2"><Calendar size={14} className="inline mr-1" /> {new Date(selectedReport.created_at + 'Z').toLocaleString('id-ID')} | Akurasi Sistem: {selectedReport.accuracy}%</p>
         </div>
 
         {!data ? (
@@ -165,10 +165,10 @@ const RiwayatLaporan = () => {
             {/* KESIMPULAN OTOMATIS */}
             <div className={`card overflow-hidden shadow-md ${isPos ? 'bg-emerald-600' : 'bg-red-600'} text-white`}>
               <div className="p-8">
-                <h2 className="text-2xl font-bold mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold mb-4">
                   Kesimpulan
                 </h2>
-                <p className="text-xl leading-relaxed font-medium">
+                <p className="text-lg sm:text-xl leading-relaxed font-medium">
                   "Berdasarkan analisis terhadap {stats.total_ulasan} ulasan, respons pengguna dominan bernada <span className="bg-white/20 px-2 py-1 rounded-md font-bold">{dominant}</span> dengan persentase mencapai {Math.max(posPerc, negPerc)}%. 
                   {isPos ? 
                     ` Meskipun dominan positif, masih terdapat keluhan negatif (${negPerc}%) yang bisa menjadi bahan evaluasi.` :
@@ -311,7 +311,7 @@ const RiwayatLaporan = () => {
                             <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-sm">
                               <p className="text-gray-700 mb-2">"{p.text}"</p>
                               <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400">Akurasi AI: {p.confidence}%</span>
+                                <span className="text-gray-400">Akurasi Sistem: {p.confidence}%</span>
                               </div>
                             </div>
                           ))}
@@ -328,7 +328,7 @@ const RiwayatLaporan = () => {
             {/* SEMUA ULASAN & PREDIKSI */}
             {METRICS && METRICS.predictions && (
               <div className="card p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Hasil Seluruh Ulasan & Prediksi AI</h3>
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Hasil Seluruh Ulasan & Prediksi Sistem</h3>
                 <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-gray-200 rounded-lg">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-gray-50 shadow-sm">
@@ -337,7 +337,7 @@ const RiwayatLaporan = () => {
                         <th className="text-left p-3 font-semibold text-gray-600 w-1/2">Ulasan</th>
                         <th className="text-center p-3 font-semibold text-gray-600">Aktual</th>
                         <th className="text-center p-3 font-semibold text-gray-600">Prediksi</th>
-                        <th className="text-center p-3 font-semibold text-gray-600">Kepercayaan AI</th>
+                        <th className="text-center p-3 font-semibold text-gray-600">Kepercayaan Sistem</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -415,7 +415,7 @@ const RiwayatLaporan = () => {
                           <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-sm">
                             <p className="text-gray-700 mb-2">"{p.text}"</p>
                             <div className="flex justify-between items-center text-xs">
-                              <span className={`px-2 py-0.5 rounded font-bold ${p.predicted === selectedSentiment ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>Prediksi AI: {p.predicted}</span>
+                              <span className={`px-2 py-0.5 rounded font-bold ${p.predicted === selectedSentiment ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>Prediksi Sistem: {p.predicted}</span>
                               <span className="text-gray-400">Kepercayaan: {p.confidence}%</span>
                             </div>
                           </div>

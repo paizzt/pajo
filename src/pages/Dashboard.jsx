@@ -13,14 +13,16 @@ import Swal from 'sweetalert2';
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [timeFilter, setTimeFilter] = useState('all');
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    fetchStats(timeFilter);
+  }, [timeFilter]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (time) => {
     try {
-      const res = await axios.get('http://localhost:8000/api/dashboard/stats');
+      setLoading(true);
+      const res = await axios.get(`http://localhost:8000/api/dashboard/stats?time=${time}`);
       setData(res.data);
       setLoading(false);
     } catch (err) {
@@ -48,19 +50,22 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
           <p className="text-sm text-gray-500 mt-1">Ringkasan analisis sentimen pengguna aplikasi.</p>
         </div>
         
-        <div className="flex gap-2">
-          <select className="input-field py-1.5 text-sm w-auto">
-            <option>Semua Data</option>
-            <option>Hari Ini</option>
-            <option>Minggu Ini</option>
-            <option>Bulan Ini</option>
-            <option>Tahun Ini</option>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <select 
+            className="input-field py-1.5 text-sm w-full sm:w-auto"
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value)}
+          >
+            <option value="all">Semua Data</option>
+            <option value="today">Hari Ini</option>
+            <option value="week">Minggu Ini</option>
+            <option value="month">Bulan Ini</option>
           </select>
         </div>
       </div>

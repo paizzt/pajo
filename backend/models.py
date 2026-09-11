@@ -50,3 +50,9 @@ class Notification(Base):
     type = Column(String, default="info") # info, success, warning, error
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     is_read = Column(Boolean, default=False)
+
+class Setting(Base):
+    __tablename__ = "settings"
+
+    key = Column(String, primary_key=True, index=True)
+    value = Column(String)

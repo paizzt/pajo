@@ -1,208 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   Link as LinkIcon, BrainCircuit, CheckCircle, Target, BarChart3, Table2, X
 } from 'lucide-react';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import axios from 'axios';
-import Swal from 'sweetalert2';
-import Papa from 'papaparse';
+import { useAnalysis } from '../context/AnalysisContext';
 
 const AnalisisBaru = () => {
-  const [step, setStep] = useState(1); // 1: Input Data, 2: Proses AI, 3: Laporan
-
-  // === STEP 1 STATES ===
-  const [inputType, setInputType] = useState('playstore'); // playstore, upload
-  const [appId, setAppId] = useState('');
-  const [count, setCount] = useState(100);
-  const [scrapeStatus, setScrapeStatus] = useState('idle'); // idle, loading, success, error
-  const [csvFile, setCsvFile] = useState(null);
-  
-  // === STEP 2 STATES ===
-  const [trainProgress, setTrainProgress] = useState(0);
-  const [trainStatusMsg, setTrainStatusMsg] = useState('');
-  
-  // === STEP 3 STATES ===
-  const [reportData, setReportData] = useState(null);
-  const [metricsData, setMetricsData] = useState(null);
-  const [featuresData, setFeaturesData] = useState([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [reportTitle, setReportTitle] = useState('');
-  const [selectedCell, setSelectedCell] = useState(null);
-  const [selectedSentiment, setSelectedSentiment] = useState(null);
-
-  // === STEP 2 LOGIC: PROGRESS POLLING ===
-  useEffect(() => {
-    let interval;
-    if (step === 2) {
-      interval = setInterval(async () => {
-        try {
-          const res = await axios.get('http://localhost:8000/api/model/train-progress');
-          const { is_training, progress, status_message } = res.data;
-          
-          setTrainProgress(progress);
-          setTrainStatusMsg(status_message);
-          
-          if (!is_training) {
-            clearInterval(interval);
-            if (progress === 100) {
-              // Sukses, fetch laporan dan lanjut step 3
-              fetchReportData();
-            } else if (status_message && status_message.startsWith('Error')) {
-              Swal.fire({ icon: 'error', title: 'Gagal Memproses!', text: status_message });
-              setStep(1);
-            } else {
-               fetchReportData();
-            }
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [step]);
-
-  // === ACTIONS ===
-  const handleStartScrapeAndTrain = async () => {
-    if (inputType === 'playstore' && !appId) {
-      return Swal.fire('Perhatian', 'ID Aplikasi wajib diisi', 'warning');
-    }
-    if (inputType === 'upload' && !csvFile) {
-      return Swal.fire('Perhatian', 'File CSV wajib diunggah', 'warning');
-    }
-    
-    try {
-      setScrapeStatus('loading');
-      
-      let reviewsData = [];
-      let datasetName = '';
-      
-      if (inputType === 'playstore') {
-        // 1. Ambil Data Play Store
-        const scrapeRes = await axios.post('http://localhost:8000/api/scrape', {
-          app_id: appId, count: Number(count), lang: 'id', country: 'id'
-        });
-        reviewsData = scrapeRes.data.data;
-        datasetName = `Dataset ${appId}`;
-      } else {
-        // 1. Parsing CSV
-        reviewsData = await new Promise((resolve, reject) => {
-          Papa.parse(csvFile, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              const data = results.data;
-              if (data.length === 0) return reject(new Error("File CSV kosong."));
-              
-              const contentKey = Object.keys(data[0]).find(k => ['content', 'text', 'ulasan', 'review', 'teks'].includes(k.toLowerCase()));
-              const scoreKey = Object.keys(data[0]).find(k => ['score', 'rating', 'skor', 'nilai'].includes(k.toLowerCase()));
-              
-              if (!contentKey || !scoreKey) {
-                return reject(new Error("File CSV harus memiliki kolom 'ulasan/content' dan 'rating/score'."));
-              }
-              
-              const formatted = data.map((row, idx) => ({
-                id: `csv_${Date.now()}_${idx}`,
-                username: row['userName'] || row['username'] || row['nama'] || `user_${idx}`,
-                content: row[contentKey],
-                score: parseInt(row[scoreKey]) || 3,
-                date: row['date'] || row['tanggal'] || new Date().toISOString(),
-                thumbs_up: parseInt(row['thumbsUpCount'] || row['thumbs_up'] || 0)
-              }));
-              resolve(formatted);
-            },
-            error: (err) => reject(new Error("Gagal membaca file CSV."))
-          });
-        });
-        datasetName = `Upload ${csvFile.name}`;
-      }
-      
-      // 2. Simpan Data
-      await axios.post('http://localhost:8000/api/reviews/save', {
-        app_id: inputType === 'playstore' ? appId : 'csv_upload', 
-        dataset_name: datasetName, 
-        reviews: reviewsData
-      });
-      
-      setScrapeStatus('success');
-      
-      // Lanjut ke Step 2 (Training)
-      setStep(2);
-      setTrainProgress(0);
-      setTrainStatusMsg('Menyiapkan data...');
-      
-      // 3. Mulai Training
-      await axios.post('http://localhost:8000/api/model/train', {
-        c: 1.0, kernel: 'linear', ngram_range: '(1,3)', max_features: 1500, dataset_id: null
-      });
-      
-    } catch (err) {
-      setScrapeStatus('error');
-      const errDetail = err.response?.data?.detail || err.message || "Gagal mengambil data. Pastikan koneksi dan file benar.";
-      setErrorMessage(errDetail);
-      Swal.fire({ icon: 'error', title: 'Gagal!', text: errDetail });
-    }
-  };
-
-  const fetchReportData = async () => {
-    try {
-      const [statsRes, metricsRes, featuresRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/dashboard/stats?time=all&sentiment=all'),
-        axios.get('http://localhost:8000/api/model/metrics'),
-        axios.get('http://localhost:8000/api/features?limit=20')
-      ]);
-      setReportData(statsRes.data);
-      if (metricsRes.data.status === 'success') {
-        setMetricsData(metricsRes.data.data);
-      }
-      if (featuresRes.data.status === 'success') {
-        setFeaturesData(featuresRes.data.data);
-      }
-      setStep(3);
-    } catch (err) {
-      console.error(err);
-      Swal.fire('Gagal!', 'Gagal memuat laporan', 'error');
-      setStep(1);
-    }
-  };
-
-  const handleSaveAndReset = async () => {
-    if (!reportTitle) return Swal.fire('Perhatian', 'Beri nama laporan terlebih dahulu', 'warning');
-    
-    setIsSaving(true);
-    try {
-      // Simpan Hasil beserta JSON lengkap (termasuk metrics dan features)
-      const fullReport = { ...reportData, metrics: metricsData, features: featuresData };
-      await axios.post('http://localhost:8000/api/results', {
-        title: reportTitle,
-        description: `Laporan untuk aplikasi: ${appId}`,
-        dataset_name: `Dataset ${appId}`,
-        report_data: JSON.stringify(fullReport)
-      });
-      
-      // Reset Sistem ke 0
-      await axios.delete('http://localhost:8000/api/reset');
-      
-      Swal.fire('Tersimpan!', 'Laporan berhasil disimpan dan sistem telah dikosongkan untuk analisis baru.', 'success');
-      
-      // Kembalikan ke awal
-      setStep(1);
-      setAppId('');
-      setCount(100);
-      setReportData(null);
-      setMetricsData(null);
-      setFeaturesData([]);
-      setReportTitle('');
-      setScrapeStatus('idle');
-      setSelectedCell(null);
-      setSelectedSentiment(null);
-      
-    } catch (err) {
-      Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const {
+    step,
+    inputType, setInputType,
+    appId, setAppId,
+    count, setCount,
+    scrapeStatus,
+    csvFile, setCsvFile,
+    trainProgress,
+    trainStatusMsg,
+    reportData,
+    metricsData,
+    isSaving,
+    reportTitle, setReportTitle,
+    selectedCell, setSelectedCell,
+    selectedSentiment, setSelectedSentiment,
+    handleStartScrapeAndTrain,
+    handleSaveAndReset
+  } = useAnalysis();
 
   // === RENDER HELPERS ===
   const renderStepIndicator = () => (
@@ -240,7 +61,7 @@ const AnalisisBaru = () => {
             <h2 className="text-xl font-bold text-gray-800">Langkah 1: Dari mana sumber data Anda?</h2>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <button 
               className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${inputType === 'playstore' ? 'border-primary bg-blue-50/50 text-primary' : 'border-gray-200 text-gray-500'}`}
               onClick={() => setInputType('playstore')}
@@ -261,7 +82,7 @@ const AnalisisBaru = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">ID Aplikasi di Play Store</label>
                 <div className="relative">
                   <LinkIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <input type="text" className="input-field pl-10 w-full" placeholder="Contoh: com.whatsapp" value={appId} onChange={(e) => setAppId(e.target.value)} />
+                  <input type="text" className="input-field pl-10 w-full" value={appId} onChange={(e) => setAppId(e.target.value)} />
                 </div>
               </div>
               <div>
@@ -287,19 +108,39 @@ const AnalisisBaru = () => {
             </div>
           )}
 
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8 flex flex-col items-end">
             <button 
-              className="btn btn-primary px-8 py-3 text-lg"
+              className="btn btn-primary px-8 py-3 text-lg flex items-center justify-center min-w-[150px] transition-all"
               onClick={handleStartScrapeAndTrain}
               disabled={scrapeStatus === 'loading' || (inputType === 'upload' && !csvFile) || (inputType === 'playstore' && !appId)}
             >
-              {scrapeStatus === 'loading' ? 'Loading' : 'Proses'}
+              {scrapeStatus === 'loading' ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Memproses...
+                </>
+              ) : 'Proses'}
             </button>
+            
+            {scrapeStatus === 'loading' && (
+              <div className="mt-6 w-full text-center p-4 bg-blue-50 border border-blue-100 text-blue-800 rounded-lg animate-pulse">
+                <p className="font-semibold text-blue-900 flex items-center justify-center gap-2">
+                  <BrainCircuit className="w-5 h-5 animate-bounce" />
+                  Sedang {inputType === 'playstore' ? 'mengambil data dari Playstore' : 'memproses file CSV'}...
+                </p>
+                <p className="text-sm mt-1 text-blue-700">
+                  Harap jangan tutup halaman ini. Proses untuk data dalam jumlah besar (seperti 100.000 ulasan) dapat memakan waktu beberapa menit.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* STEP 2: PROSES AI */}
+      {/* STEP 2: PROSES SISTEM */}
       {step === 2 && (
         <div className="card p-10 shadow-md border border-gray-100 text-center animate-in zoom-in-95">
           <BrainCircuit size={64} className="mx-auto text-primary mb-6 animate-pulse" />
@@ -472,7 +313,7 @@ const AnalisisBaru = () => {
                           <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-sm">
                             <p className="text-gray-700 mb-2">"{p.text}"</p>
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-gray-400">Akurasi AI: {p.confidence}%</span>
+                              <span className="text-gray-400">Akurasi Sistem: {p.confidence}%</span>
                             </div>
                           </div>
                         ))}
@@ -489,7 +330,7 @@ const AnalisisBaru = () => {
           {/* SEMUA ULASAN & PREDIKSI */}
           {metricsData && metricsData.predictions && (
             <div className="card p-6 shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Hasil Seluruh Ulasan & Prediksi AI</h3>
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Hasil Seluruh Ulasan & Prediksi Sistem</h3>
               <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-gray-200 rounded-lg">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-gray-50 shadow-sm">
@@ -498,7 +339,7 @@ const AnalisisBaru = () => {
                       <th className="text-left p-3 font-semibold text-gray-600 w-1/2">Ulasan</th>
                       <th className="text-center p-3 font-semibold text-gray-600">Aktual</th>
                       <th className="text-center p-3 font-semibold text-gray-600">Prediksi</th>
-                      <th className="text-center p-3 font-semibold text-gray-600">Kepercayaan AI</th>
+                      <th className="text-center p-3 font-semibold text-gray-600">Kepercayaan Sistem</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -576,7 +417,7 @@ const AnalisisBaru = () => {
                         <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-sm">
                           <p className="text-gray-700 mb-2">"{p.text}"</p>
                           <div className="flex justify-between items-center text-xs">
-                            <span className={`px-2 py-0.5 rounded font-bold ${p.predicted === selectedSentiment ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>Prediksi AI: {p.predicted}</span>
+                            <span className={`px-2 py-0.5 rounded font-bold ${p.predicted === selectedSentiment ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>Prediksi Sistem: {p.predicted}</span>
                             <span className="text-gray-400">Kepercayaan: {p.confidence}%</span>
                           </div>
                         </div>
@@ -599,7 +440,6 @@ const AnalisisBaru = () => {
                 <input 
                   type="text" 
                   className="input-field w-full text-center text-lg py-3" 
-                  placeholder="Contoh: Analisis BCA Agustus" 
                   value={reportTitle} 
                   onChange={(e) => setReportTitle(e.target.value)} 
                 />

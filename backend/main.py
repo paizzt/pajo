@@ -64,6 +64,13 @@ class SavedResultCreate(BaseModel):
     dataset_name: Optional[str] = None
     report_data: Optional[str] = None
 
+class SettingItem(BaseModel):
+    key: str
+    value: str
+
+class SettingsUpdateRequest(BaseModel):
+    settings: List[SettingItem]
+
 class TrainRequest(BaseModel):
     c: float = 1.0
     kernel: str = 'linear'
@@ -151,10 +158,12 @@ def get_reviews(db: Session = Depends(get_db), limit: int = 100):
     formatted = []
     for r in all_reviews:
         confidence = "N/A"
+        predicted = "N/A"
         if ml_model.is_trained:
             try:
                 pred = ml_model.predict(r.content)
-                confidence = f"{pred['confidence']}%"
+                confidence = f"{pred['confidence']}"
+                predicted = pred['sentiment']
             except:
                 pass
                 
@@ -163,7 +172,8 @@ def get_reviews(db: Session = Depends(get_db), limit: int = 100):
             "text": r.content,
             "rating": r.score,
             "date": r.date.split("T")[0] if "T" in r.date else r.date,
-            "sentiment": r.sentiment_label,
+            "actual": r.sentiment_label,
+            "predicted": predicted,
             "confidence": confidence,
             "username": r.username
         })
@@ -173,10 +183,12 @@ def get_reviews(db: Session = Depends(get_db), limit: int = 100):
 def analyze_text(req: AnalyzeRequest):
     try:
         if not req.text.strip():
-            raise HTTPException(status_code=400, detail="Text cannot be empty")
+            raise HTTPException(status_code=400, detail="Teks tidak boleh kosong")
         result = ml_model.predict(req.text)
         return {"status": "success", "data": result}
     except Exception as e:
+        if "belum dilatih" in str(e).lower() or "not trained" in str(e).lower():
+            raise HTTPException(status_code=400, detail=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/features")
@@ -222,7 +234,7 @@ def background_train_wrapper(texts, labels, C, kernel, ngram_range, max_features
 def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
     try:
         if ml_model.is_training:
-            raise HTTPException(status_code=400, detail="Training is already in progress")
+            raise HTTPException(status_code=400, detail="Pelatihan model sedang berlangsung")
             
         # Fetch all labeled reviews using a manual session so we can close it early
         db = SessionLocal()
@@ -233,7 +245,7 @@ def train_model(req: TrainRequest, background_tasks: BackgroundTasks):
             all_reviews = query.all()
             
             if len(all_reviews) < 10:
-                raise HTTPException(status_code=400, detail="Not enough data to train model (need at least 10 reviews)")
+                raise HTTPException(status_code=400, detail="Data tidak cukup untuk melatih model (minimal 10 ulasan)")
                 
             texts = [r.content for r in all_reviews]
             labels = [r.sentiment_label for r in all_reviews]
@@ -379,17 +391,32 @@ def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session =
         {"name": "Netral", "value": net, "color": "#64748b"}
     ]
 
-    # Dummy trend for now since we need group by month
-    trend_data = [
-        {"name": "Bulan Ini", "Positif": pos, "Negatif": neg, "Netral": net}
-    ]
+    # Fetch all dates and sentiments for the time filter
+    all_filtered = base_query.all()
+    trend_dict = {}
+    for r in all_filtered:
+        d = str(r.date).split("T")[0]
+        if d not in trend_dict:
+            trend_dict[d] = {"name": d, "Positif": 0, "Negatif": 0, "Netral": 0}
+        
+        sent = r.sentiment_label
+        if sent == "POSITIF": trend_dict[d]["Positif"] += 1
+        elif sent == "NEGATIF": trend_dict[d]["Negatif"] += 1
+        else: trend_dict[d]["Netral"] += 1
+        
+    trend_data = list(trend_dict.values())
+    trend_data.sort(key=lambda x: x["name"])
     
-    top_words = [
-        {"name": "aplikasi", "count": 100},
-        {"name": "bagus", "count": 80},
-        {"name": "error", "count": 50},
-        {"name": "login", "count": 40},
-    ]
+    if len(trend_data) > 14:
+        trend_data = trend_data[-14:]
+    
+    top_words = []
+    if ml_model.is_trained:
+        features = ml_model.get_top_features(5)
+        top_words = [{"name": f["word"], "count": f["tfidf"]} for f in features]
+    
+    if not top_words:
+        top_words = [{"name": "Belum ada model", "count": 0}]
 
     return {
         "stats": {
@@ -438,7 +465,7 @@ def create_dataset(req: DatasetCreate, db: Session = Depends(get_db)):
 def delete_dataset(id: int, db: Session = Depends(get_db)):
     ds = db.query(models.Dataset).filter(models.Dataset.id == id).first()
     if not ds:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        raise HTTPException(status_code=404, detail="Dataset tidak ditemukan")
     db.delete(ds)
     db.commit()
     return {"status": "success"}
@@ -494,7 +521,7 @@ def reset_system(db: Session = Depends(get_db)):
 def update_saved_result(id: int, req: SavedResultCreate, db: Session = Depends(get_db)):
     sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
     if not sr:
-        raise HTTPException(status_code=404, detail="Result not found")
+        raise HTTPException(status_code=404, detail="Hasil tidak ditemukan")
     sr.title = req.title
     sr.description = req.description
     db.commit()
@@ -504,7 +531,7 @@ def update_saved_result(id: int, req: SavedResultCreate, db: Session = Depends(g
 def delete_saved_result(id: int, db: Session = Depends(get_db)):
     sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
     if not sr:
-        raise HTTPException(status_code=404, detail="Result not found")
+        raise HTTPException(status_code=404, detail="Hasil tidak ditemukan")
     db.delete(sr)
     db.commit()
     return {"status": "success"}
@@ -515,7 +542,238 @@ def get_notifications(db: Session = Depends(get_db)):
     return {"status": "success", "data": notifs}
 
 @app.put("/api/notifications/read")
-def mark_notifications_read(db: Session = Depends(get_db)):
-    db.query(models.Notification).filter(models.Notification.is_read == False).update({models.Notification.is_read: True})
+def read_notifications(db: Session = Depends(get_db)):
+    db.query(models.Notification).update({models.Notification.is_read: True})
     db.commit()
     return {"status": "success"}
+
+@app.get("/api/settings")
+def get_settings(db: Session = Depends(get_db)):
+    settings = db.query(models.Setting).all()
+    default_settings = {
+        "confidence_threshold": "60",
+        "custom_stopwords": "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din",
+        "auto_clean": "true"
+    }
+    
+    result = default_settings.copy()
+    for s in settings:
+        result[s.key] = s.value
+        
+    return {"status": "success", "data": result}
+
+@app.get("/api/dashboard/stats")
+def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session = Depends(get_db)):
+    base_query = db.query(models.Review)
+    
+    # Time filtering
+    if time != 'all':
+        now = datetime.datetime.now()
+        if time == 'today':
+            date_filter = now.strftime('%Y-%m-%d')
+            base_query = base_query.filter(models.Review.date.like(f"{date_filter}%"))
+        elif time == 'week':
+            week_ago = now - datetime.timedelta(days=7)
+            base_query = base_query.filter(models.Review.date >= week_ago.strftime('%Y-%m-%d'))
+        elif time == 'month':
+            month_filter = now.strftime('%Y-%m')
+            base_query = base_query.filter(models.Review.date.like(f"{month_filter}%"))
+
+    # Count sentiments from base query (before sentiment filter)
+    pos = base_query.filter(models.Review.sentiment_label == "POSITIF").count()
+    neg = base_query.filter(models.Review.sentiment_label == "NEGATIF").count()
+    net = base_query.filter(models.Review.sentiment_label == "NETRAL").count()
+            
+    # Apply sentiment filter for total count
+    if sentiment != 'all':
+        total = base_query.filter(models.Review.sentiment_label == sentiment).count()
+    else:
+        total = pos + neg + net
+
+    pie_data = [
+        {"name": "Positif", "value": pos, "color": "#10b981"},
+        {"name": "Negatif", "value": neg, "color": "#ef4444"},
+        {"name": "Netral", "value": net, "color": "#64748b"}
+    ]
+
+    # Fetch all dates and sentiments for the time filter
+    all_filtered = base_query.all()
+    trend_dict = {}
+    for r in all_filtered:
+        d = str(r.date).split("T")[0]
+        if d not in trend_dict:
+            trend_dict[d] = {"name": d, "Positif": 0, "Negatif": 0, "Netral": 0}
+        
+        sent = r.sentiment_label
+        if sent == "POSITIF": trend_dict[d]["Positif"] += 1
+        elif sent == "NEGATIF": trend_dict[d]["Negatif"] += 1
+        else: trend_dict[d]["Netral"] += 1
+        
+    trend_data = list(trend_dict.values())
+    trend_data.sort(key=lambda x: x["name"])
+    
+    if len(trend_data) > 14:
+        trend_data = trend_data[-14:]
+    
+    top_words = []
+    if ml_model.is_trained:
+        features = ml_model.get_top_features(5)
+        top_words = [{"name": f["word"], "count": f["tfidf"]} for f in features]
+    
+    if not top_words:
+        top_words = [{"name": "Belum ada model", "count": 0}]
+
+    return {
+        "stats": {
+            "total_ulasan": total,
+            "positif": pos,
+            "negatif": neg,
+            "netral": net,
+            "akurasi_model": f"{ml_model.metrics['accuracy']}%" if ml_model.is_trained and ml_model.metrics else "N/A"
+        },
+        "pie_data": pie_data,
+        "trend_data": trend_data,
+        "top_words": top_words
+    }
+    
+
+# ================= NEW ENDPOINTS =================
+
+@app.get("/api/datasets")
+def get_datasets(db: Session = Depends(get_db)):
+    datasets = db.query(models.Dataset).order_by(models.Dataset.created_at.desc()).all()
+    res = []
+    for d in datasets:
+        count = db.query(models.Review).filter(models.Review.dataset_id == d.id).count()
+        res.append({
+            "id": d.id,
+            "name": d.name,
+            "description": d.description,
+            "created_at": d.created_at,
+            "review_count": count
+        })
+    return {"status": "success", "data": res}
+
+@app.post("/api/datasets")
+def create_dataset(req: DatasetCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.Dataset).filter(models.Dataset.name == req.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Dataset dengan nama ini sudah ada")
+    
+    ds = models.Dataset(name=req.name, description=req.description)
+    db.add(ds)
+    db.commit()
+    db.refresh(ds)
+    return {"status": "success", "data": ds}
+
+@app.delete("/api/datasets/{id}")
+def delete_dataset(id: int, db: Session = Depends(get_db)):
+    ds = db.query(models.Dataset).filter(models.Dataset.id == id).first()
+    if not ds:
+        raise HTTPException(status_code=404, detail="Dataset tidak ditemukan")
+    db.delete(ds)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/results")
+def get_saved_results(db: Session = Depends(get_db)):
+    results = db.query(models.SavedResult).order_by(models.SavedResult.created_at.desc()).all()
+    return {"status": "success", "data": results}
+
+@app.post("/api/results")
+def save_result(req: SavedResultCreate, db: Session = Depends(get_db)):
+    import json
+    if not ml_model.is_trained:
+        raise HTTPException(status_code=400, detail="Belum ada model yang dilatih saat ini.")
+        
+    sr = models.SavedResult(
+        title=req.title,
+        description=req.description,
+        dataset_name=req.dataset_name,
+        accuracy=ml_model.metrics.get('accuracy', 0),
+        metrics_json=json.dumps(ml_model.metrics),
+        report_data=req.report_data
+    )
+    db.add(sr)
+    db.commit()
+    db.refresh(sr)
+    return {"status": "success", "data": sr}
+
+@app.delete("/api/reset")
+def reset_system(db: Session = Depends(get_db)):
+    try:
+        # Delete all reviews and datasets
+        db.query(models.Review).delete()
+        db.query(models.Dataset).delete()
+        db.commit()
+        
+        # Reset ML Model
+        ml_model.is_trained = False
+        ml_model.metrics = None
+        ml_model.model = None
+        ml_model.vectorizer = None
+        if os.path.exists(ml_model.model_path):
+            os.remove(ml_model.model_path)
+        if os.path.exists(ml_model.vectorizer_path):
+            os.remove(ml_model.vectorizer_path)
+            
+        return {"status": "success", "message": "Sistem berhasil di-reset ke 0"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/results/{id}")
+def update_saved_result(id: int, req: SavedResultCreate, db: Session = Depends(get_db)):
+    sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
+    if not sr:
+        raise HTTPException(status_code=404, detail="Hasil tidak ditemukan")
+    sr.title = req.title
+    sr.description = req.description
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/results/{id}")
+def delete_saved_result(id: int, db: Session = Depends(get_db)):
+    sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
+    if not sr:
+        raise HTTPException(status_code=404, detail="Hasil tidak ditemukan")
+    db.delete(sr)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/notifications")
+def get_notifications(db: Session = Depends(get_db)):
+    notifs = db.query(models.Notification).order_by(models.Notification.created_at.desc()).limit(20).all()
+    return {"status": "success", "data": notifs}
+
+@app.put("/api/notifications/read")
+def read_notifications(db: Session = Depends(get_db)):
+    db.query(models.Notification).update({models.Notification.is_read: True})
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/settings")
+def get_settings(db: Session = Depends(get_db)):
+    settings = db.query(models.Setting).all()
+    default_settings = {
+        "confidence_threshold": "60",
+        "custom_stopwords": "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din",
+        "auto_clean": "true"
+    }
+    for s in settings:
+        default_settings[s.key] = s.value
+    return {"status": "success", "data": default_settings}
+
+@app.post("/api/settings")
+def save_settings(req: SettingsUpdateRequest, db: Session = Depends(get_db)):
+    for item in req.settings:
+        existing = db.query(models.Setting).filter(models.Setting.key == item.key).first()
+        if existing:
+            existing.value = item.value
+        else:
+            new_setting = models.Setting(key=item.key, value=item.value)
+            db.add(new_setting)
+    db.commit()
+    import ml_pipeline
+    ml_pipeline.clear_stopwords_cache()
+    return {"status": "success", "message": "Pengaturan berhasil disimpan"}

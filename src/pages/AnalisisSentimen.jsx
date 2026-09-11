@@ -47,7 +47,7 @@ const AnalisisSentimen = () => {
         <h1 className="text-3xl font-bold text-gray-900 flex justify-center items-center gap-3">
           <MessageSquare size={32} className="text-primary" /> Uji Sentimen
         </h1>
-        <p className="text-gray-500 mt-2">Ketik kalimat apapun dan lihat bagaimana AI menebak sentimen dari kalimat tersebut.</p>
+        <p className="text-gray-500 mt-2">Ketik kalimat apapun dan lihat bagaimana sistem menebak sentimen dari kalimat tersebut.</p>
       </div>
 
       {/* CHAT INTERFACE */}
@@ -83,7 +83,7 @@ const AnalisisSentimen = () => {
             </div>
           )}
 
-          {/* Balasan AI */}
+          {/* Balasan Sistem */}
           {result && !loading && (
             <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4">
               <div className="bg-white p-5 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 max-w-[90%]">
@@ -152,7 +152,6 @@ const AnalisisSentimen = () => {
             <input
               type="text"
               className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-full py-3.5 pl-5 pr-14 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-shadow"
-              placeholder="Ketik kalimat untuk diuji..."
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={loading}

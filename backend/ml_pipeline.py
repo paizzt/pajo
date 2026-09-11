@@ -17,10 +17,37 @@ except LookupError:
 # Initialize Stemmer
 factory = StemmerFactory()
 stemmer = factory.create_stemmer()
-base_stopwords = set(stopwords.words('indonesian'))
-# Pengecualian kata negasi agar "tidak bagus" tidak menjadi "bagus" (positif)
-negation_words = {"tidak", "bukan", "belum", "jangan", "kurang", "tanpa", "tak", "tiada", "enggan"}
-stop_words = base_stopwords - negation_words
+from database import SessionLocal
+import models
+
+_cached_stopwords = None
+
+def get_stopwords():
+    global _cached_stopwords
+    if _cached_stopwords is not None:
+        return _cached_stopwords
+        
+    db = SessionLocal()
+    try:
+        setting = db.query(models.Setting).filter(models.Setting.key == 'custom_stopwords').first()
+        base_stopwords = set(stopwords.words('indonesian'))
+        negation_words = {"tidak", "bukan", "belum", "jangan", "kurang", "tanpa", "tak", "tiada", "enggan"}
+        stop_words = base_stopwords - negation_words
+        
+        if setting and setting.value:
+            customs = [w.strip() for w in setting.value.split(',')]
+            stop_words.update(customs)
+            
+        _cached_stopwords = stop_words
+        return stop_words
+    except Exception:
+        return set(stopwords.words('indonesian')) - {"tidak", "bukan", "belum", "jangan", "kurang", "tanpa", "tak", "tiada", "enggan"}
+    finally:
+        db.close()
+
+def clear_stopwords_cache():
+    global _cached_stopwords
+    _cached_stopwords = None
 
 def preprocess_text(text: str, return_steps=False):
     # 1. Original
@@ -35,6 +62,7 @@ def preprocess_text(text: str, return_steps=False):
     
     # 4. Stopword Removal & Stemming
     final_tokens = []
+    stop_words = get_stopwords()
     for t in tokens:
         if t not in stop_words:
             stemmed = stemmer.stem(t)
@@ -82,7 +110,7 @@ class SentimentModel:
 
     def train(self, texts, labels, C=1.0, kernel='linear', ngram_range=(1, 1), max_features=1500):
         if not texts or not labels:
-            raise Exception("No data provided for training")
+            raise Exception("Tidak ada data yang diberikan untuk pelatihan")
             
         try:
             self.is_training = True
@@ -157,7 +185,7 @@ class SentimentModel:
 
     def predict(self, text):
         if not self.is_trained:
-            raise Exception("Model is not trained yet. Please train the model first.")
+            raise Exception("Model belum dilatih. Silakan latih model terlebih dahulu.")
             
         steps = preprocess_text(text, return_steps=True)
         X = self.vectorizer.transform([steps["final"]])
@@ -186,9 +214,9 @@ class SentimentModel:
                 confidence = val
                 
         return {
-            "sentiment": pred,
-            "confidence": confidence,
-            "probabilities": prob_dict,
+            "sentiment": str(pred),
+            "confidence": float(confidence),
+            "probabilities": {k: float(v) for k, v in prob_dict.items()},
             "preprocessing": steps
         }
 
