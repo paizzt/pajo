@@ -17,7 +17,10 @@ except LookupError:
 # Initialize Stemmer
 factory = StemmerFactory()
 stemmer = factory.create_stemmer()
-stop_words = set(stopwords.words('indonesian'))
+base_stopwords = set(stopwords.words('indonesian'))
+# Pengecualian kata negasi agar "tidak bagus" tidak menjadi "bagus" (positif)
+negation_words = {"tidak", "bukan", "belum", "jangan", "kurang", "tanpa", "tak", "tiada", "enggan"}
+stop_words = base_stopwords - negation_words
 
 def preprocess_text(text: str, return_steps=False):
     # 1. Original
@@ -112,13 +115,24 @@ class SentimentModel:
             self.training_progress = 95
             joblib.dump(self.model, self.model_path)
             joblib.dump(self.vectorizer, self.vectorizer_path)
-            
             # Calculate metrics
             self.training_status = "Menghitung metrik evaluasi..."
             preds = self.model.predict(X)
+            probs = self.model.predict_proba(X)
             
             classes = self.model.classes_.tolist()
             cm = confusion_matrix(labels, preds, labels=classes).tolist()
+            
+            # Generate detailed predictions
+            predictions_detail = []
+            for i in range(len(labels)):
+                max_prob = round(max(probs[i]) * 100, 2)
+                predictions_detail.append({
+                    "text": texts[i],
+                    "actual": labels[i],
+                    "predicted": preds[i],
+                    "confidence": max_prob
+                })
             
             self.metrics = {
                 "accuracy": round(accuracy_score(labels, preds) * 100, 2),
@@ -126,7 +140,8 @@ class SentimentModel:
                 "recall": round(recall_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
                 "f1_score": round(f1_score(labels, preds, average='weighted', zero_division=0) * 100, 2),
                 "confusion_matrix": cm,
-                "classes": classes
+                "classes": classes,
+                "predictions": predictions_detail
             }
             self.is_trained = True
             self.training_progress = 100

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, Loader2, PieChart, CheckCircle, AlertTriangle, TrendingUp, Target, BarChart3, Table2 } from 'lucide-react';
+import { FileText, Calendar, Loader2, PieChart, CheckCircle, AlertTriangle, TrendingUp, Target, BarChart3, Table2, Trash2, Eye, X } from 'lucide-react';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import Swal from 'sweetalert2';
 
 const RiwayatLaporan = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [selectedSentiment, setSelectedSentiment] = useState(null);
 
   useEffect(() => {
     fetchResults();
@@ -35,6 +38,38 @@ const RiwayatLaporan = () => {
     } catch (e) {
       console.error("Gagal membaca data laporan", e);
       setSelectedReport({ ...res, parsedReportData: null });
+    }
+    setSelectedCell(null); // Reset cell selection
+    setSelectedSentiment(null);
+  };
+
+  const handleDeleteReport = async (e, id) => {
+    e.stopPropagation(); // Mencegah card terbuka saat tombol hapus diklik
+    
+    const result = await Swal.fire({
+      title: 'Apakah Anda yakin?',
+      text: "Laporan yang dihapus tidak dapat dikembalikan!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus!',
+      cancelButtonText: 'Batal'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await axios.delete(`http://localhost:8000/api/results/${id}`);
+        if (res.data.status === 'success') {
+          Swal.fire('Terhapus!', 'Laporan telah berhasil dihapus.', 'success');
+          fetchResults();
+          if (selectedReport && selectedReport.id === id) {
+            setSelectedReport(null);
+          }
+        }
+      } catch (err) {
+        Swal.fire('Error', 'Terjadi kesalahan saat menghapus laporan.', 'error');
+      }
     }
   };
 
@@ -104,9 +139,14 @@ const RiwayatLaporan = () => {
           <button onClick={() => setSelectedReport(null)} className="btn btn-secondary font-bold">
             Kembali
           </button>
-          <button onClick={() => exportPDF(selectedReport)} className="btn btn-primary font-bold">
-            Unduh
-          </button>
+          <div className="flex gap-2">
+            <button onClick={(e) => handleDeleteReport(e, selectedReport.id)} className="btn bg-red-100 text-red-600 hover:bg-red-200 font-bold">
+              Hapus
+            </button>
+            <button onClick={() => exportPDF(selectedReport)} className="btn btn-primary font-bold">
+              Unduh
+            </button>
+          </div>
         </div>
 
         <div className="text-center mb-8">
@@ -204,71 +244,114 @@ const RiwayatLaporan = () => {
             {CM && CLASSES && (
               <div className="card p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><BarChart3 size={20} className="text-primary" /> Confusion Matrix</h3>
-                <div className="overflow-x-auto">
-                  <table className="mx-auto border-collapse">
-                    <thead>
-                      <tr>
-                        <th className="p-3 text-xs text-gray-500 font-semibold" rowSpan={2} colSpan={2}></th>
-                        <th className="p-2 text-center text-xs font-bold text-gray-700 border-b-2 border-gray-200" colSpan={CLASSES.length}>Prediksi</th>
-                      </tr>
-                      <tr>
-                        {CLASSES.map((cls, i) => (
-                          <th key={i} className="p-3 text-xs font-bold text-gray-700 text-center min-w-[80px]">{cls}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {CM.map((row, ri) => (
-                        <tr key={ri}>
-                          {ri === 0 && (
-                            <td className="p-2 text-xs font-bold text-gray-700" rowSpan={CLASSES.length} style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>Aktual</td>
-                          )}
-                          <td className="p-3 text-xs font-bold text-gray-700 text-right">{CLASSES[ri]}</td>
-                          {row.map((val, ci) => {
-                            const maxVal = Math.max(...CM.flat());
-                            const intensity = maxVal > 0 ? val / maxVal : 0;
-                            const isDiagonal = ri === ci;
-                            const bgColor = isDiagonal 
-                              ? `rgba(16, 185, 129, ${0.15 + intensity * 0.65})` 
-                              : val > 0 ? `rgba(239, 68, 68, ${0.1 + intensity * 0.5})` : 'rgba(243, 244, 246, 0.5)';
-                            return (
-                              <td key={ci} className="p-3 text-center border border-gray-100" style={{ backgroundColor: bgColor }}>
-                                <span className={`text-lg font-bold ${isDiagonal ? 'text-emerald-800' : val > 0 ? 'text-red-700' : 'text-gray-400'}`}>{val}</span>
-                              </td>
-                            );
-                          })}
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className={`overflow-x-auto ${selectedCell ? 'lg:w-1/2' : 'w-full'} transition-all duration-300`}>
+                    <table className="mx-auto border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="p-3 text-xs text-gray-500 font-semibold" rowSpan={2} colSpan={2}></th>
+                          <th className="p-2 text-center text-xs font-bold text-gray-700 border-b-2 border-gray-200" colSpan={CLASSES.length}>Prediksi</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        <tr>
+                          {CLASSES.map((cls, i) => (
+                            <th key={i} className="p-3 text-xs font-bold text-gray-700 text-center min-w-[80px]">{cls}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {CM.map((row, ri) => (
+                          <tr key={ri}>
+                            {ri === 0 && (
+                              <td className="p-2 text-xs font-bold text-gray-700" rowSpan={CLASSES.length} style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>Aktual</td>
+                            )}
+                            <td className="p-3 text-xs font-bold text-gray-700 text-right">{CLASSES[ri]}</td>
+                            {row.map((val, ci) => {
+                              const maxVal = Math.max(...CM.flat());
+                              const intensity = maxVal > 0 ? val / maxVal : 0;
+                              const isDiagonal = ri === ci;
+                              const bgColor = isDiagonal 
+                                ? `rgba(16, 185, 129, ${0.15 + intensity * 0.65})` 
+                                : val > 0 ? `rgba(239, 68, 68, ${0.1 + intensity * 0.5})` : 'rgba(243, 244, 246, 0.5)';
+                              return (
+                                <td 
+                                  key={ci} 
+                                  className={`p-3 text-center border border-gray-100 cursor-pointer hover:opacity-80 transition-opacity ${selectedCell?.actual === CLASSES[ri] && selectedCell?.predicted === CLASSES[ci] ? 'ring-2 ring-primary ring-inset' : ''}`} 
+                                  style={{ backgroundColor: bgColor }}
+                                  onClick={() => setSelectedCell({ actual: CLASSES[ri], predicted: CLASSES[ci], value: val })}
+                                >
+                                  <span className={`text-lg font-bold ${isDiagonal ? 'text-emerald-800' : val > 0 ? 'text-red-700' : 'text-gray-400'}`}>{val}</span>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="text-xs text-gray-400 text-center mt-3">Hijau = prediksi benar (diagonal), Merah = prediksi salah.<br/>Klik angka untuk melihat detail ulasan.</p>
+                  </div>
+                  
+                  {/* Right Panel for Selected Cell */}
+                  {selectedCell && (
+                    <div className="lg:w-1/2 bg-gray-50 rounded-xl border border-gray-200 p-4 h-[400px] flex flex-col animate-in slide-in-from-right-4">
+                      <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                        <div>
+                          <h4 className="font-bold text-gray-800">Detail Ulasan</h4>
+                          <p className="text-xs text-gray-500">
+                            Aktual: <span className="font-bold">{selectedCell.actual}</span> | Prediksi: <span className="font-bold">{selectedCell.predicted}</span> ({selectedCell.value} data)
+                          </p>
+                        </div>
+                        <button onClick={() => setSelectedCell(null)} className="text-gray-400 hover:text-red-500 transition-colors">
+                          <X size={20} />
+                        </button>
+                      </div>
+                      <div className="overflow-y-auto flex-1 space-y-3 pr-2">
+                        {METRICS.predictions
+                          ?.filter(p => p.actual === selectedCell.actual && p.predicted === selectedCell.predicted)
+                          .map((p, idx) => (
+                            <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-sm">
+                              <p className="text-gray-700 mb-2">"{p.text}"</p>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-400">Akurasi AI: {p.confidence}%</span>
+                              </div>
+                            </div>
+                          ))}
+                        {(!METRICS.predictions || METRICS.predictions.filter(p => p.actual === selectedCell.actual && p.predicted === selectedCell.predicted).length === 0) && (
+                          <div className="text-center text-gray-400 py-10">Tidak ada detail ulasan untuk kategori ini.</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-gray-400 text-center mt-3">Hijau = prediksi benar (diagonal), Merah = prediksi salah</p>
               </div>
             )}
 
-            {/* TABEL FITUR TF-IDF */}
-            {FEATURES.length > 0 && (
+            {/* SEMUA ULASAN & PREDIKSI */}
+            {METRICS && METRICS.predictions && (
               <div className="card p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Top 20 Fitur TF-IDF</h3>
-                <div className="overflow-x-auto">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Table2 size={20} className="text-primary" /> Hasil Seluruh Ulasan & Prediksi AI</h3>
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto border border-gray-200 rounded-lg">
                   <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
+                    <thead className="sticky top-0 bg-gray-50 shadow-sm">
+                      <tr className="border-b border-gray-200">
                         <th className="text-left p-3 font-semibold text-gray-600">No</th>
-                        <th className="text-left p-3 font-semibold text-gray-600">Kata/Frasa</th>
-                        <th className="text-right p-3 font-semibold text-gray-600">TF</th>
-                        <th className="text-right p-3 font-semibold text-gray-600">IDF</th>
-                        <th className="text-right p-3 font-semibold text-gray-600">TF-IDF</th>
+                        <th className="text-left p-3 font-semibold text-gray-600 w-1/2">Ulasan</th>
+                        <th className="text-center p-3 font-semibold text-gray-600">Aktual</th>
+                        <th className="text-center p-3 font-semibold text-gray-600">Prediksi</th>
+                        <th className="text-center p-3 font-semibold text-gray-600">Kepercayaan AI</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {FEATURES.slice(0, 20).map((f, i) => (
+                      {METRICS.predictions.map((p, i) => (
                         <tr key={i} className={`border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-emerald-50/30 transition-colors`}>
                           <td className="p-3 text-gray-400 font-mono text-xs">{i + 1}</td>
-                          <td className="p-3 font-medium text-gray-800">{f.word}</td>
-                          <td className="p-3 text-right text-gray-600 font-mono">{f.tf}</td>
-                          <td className="p-3 text-right text-gray-600 font-mono">{f.idf}</td>
-                          <td className="p-3 text-right font-bold text-primary font-mono">{f.tfidf}</td>
+                          <td className="p-3 text-gray-700">{p.text}</td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${p.actual === 'POSITIF' ? 'bg-emerald-100 text-emerald-700' : p.actual === 'NEGATIF' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700'}`}>{p.actual}</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${p.predicted === 'POSITIF' ? 'bg-emerald-100 text-emerald-700' : p.predicted === 'NEGATIF' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700'}`}>{p.predicted}</span>
+                          </td>
+                          <td className="p-3 text-center font-bold text-primary">{p.confidence}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -280,20 +363,69 @@ const RiwayatLaporan = () => {
             {/* BAR CHART SENTIMEN */}
             <div className="card p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Jumlah Ulasan per Sentimen</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={PIE_DATA} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
-                    <Tooltip cursor={{fill: '#f3f4f6'}} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                      {PIE_DATA.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className={`h-[350px] ${selectedSentiment ? 'lg:w-1/2' : 'w-full'} transition-all duration-300`}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={PIE_DATA} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
+                      <Tooltip cursor={{fill: '#f3f4f6'}} />
+                      <Bar 
+                        dataKey="value" 
+                        radius={[6, 6, 0, 0]}
+                        onClick={(data) => {
+                          if (data && data.name) {
+                            setSelectedSentiment(data.name.toUpperCase());
+                          }
+                        }}
+                      >
+                        {PIE_DATA.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.color} 
+                            cursor="pointer" 
+                            className="hover:opacity-80 transition-opacity" 
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-gray-400 text-center mt-3">Klik batang grafik untuk melihat detail ulasan.</p>
+                </div>
+
+                {/* Right Panel for Selected Sentiment */}
+                {selectedSentiment && (
+                  <div className="lg:w-1/2 bg-gray-50 rounded-xl border border-gray-200 p-4 h-[350px] flex flex-col animate-in slide-in-from-right-4">
+                    <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                      <div>
+                        <h4 className="font-bold text-gray-800">Ulasan {selectedSentiment}</h4>
+                        <p className="text-xs text-gray-500">
+                          Total: <span className="font-bold">{METRICS?.predictions?.filter(p => p.actual === selectedSentiment).length || 0}</span> data
+                        </p>
+                      </div>
+                      <button onClick={() => setSelectedSentiment(null)} className="text-gray-400 hover:text-red-500 transition-colors">
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto flex-1 space-y-3 pr-2">
+                      {METRICS?.predictions
+                        ?.filter(p => p.actual === selectedSentiment)
+                        .map((p, idx) => (
+                          <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-sm">
+                            <p className="text-gray-700 mb-2">"{p.text}"</p>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className={`px-2 py-0.5 rounded font-bold ${p.predicted === selectedSentiment ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>Prediksi AI: {p.predicted}</span>
+                              <span className="text-gray-400">Kepercayaan: {p.confidence}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      {(!METRICS?.predictions || METRICS.predictions.filter(p => p.actual === selectedSentiment).length === 0) && (
+                        <div className="text-center text-gray-400 py-10">Tidak ada ulasan untuk sentimen ini.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -339,7 +471,16 @@ const RiwayatLaporan = () => {
               
               <div className="border-t border-gray-100 pt-4 flex items-center justify-between text-xs text-gray-400 font-medium">
                 <span className="flex items-center gap-1"><Calendar size={14} /> {new Date(res.created_at + 'Z').toLocaleDateString('id-ID')}</span>
-                <span className="text-primary font-bold">Buka</span>
+                <div className="flex gap-3 items-center">
+                  <button 
+                    onClick={(e) => handleDeleteReport(e, res.id)} 
+                    className="text-red-500 hover:text-red-700 transition-colors flex items-center gap-1 font-bold z-10"
+                    title="Hapus Laporan"
+                  >
+                    <Trash2 size={16} /> Hapus
+                  </button>
+                  <span className="text-primary font-bold flex items-center gap-1"><Eye size={16} /> Buka</span>
+                </div>
               </div>
             </div>
           ))}

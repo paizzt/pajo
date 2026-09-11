@@ -4,7 +4,12 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 
 const MainLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">

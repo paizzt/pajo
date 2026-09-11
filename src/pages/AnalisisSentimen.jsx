@@ -105,7 +105,7 @@ const AnalisisSentimen = () => {
                     </div>
                     <span className="font-bold text-gray-700 text-sm whitespace-nowrap">{result.confidence}%</span>
                   </div>
-                  <div className="flex gap-4 mt-2 text-xs text-gray-400">
+                  <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-400">
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Positif {result.probabilities.positive}%</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block"></span> Netral {result.probabilities.neutral}%</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Negatif {result.probabilities.negative}%</span>
