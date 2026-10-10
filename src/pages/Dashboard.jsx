@@ -22,7 +22,7 @@ const Dashboard = () => {
   const fetchStats = async (time) => {
     try {
       setLoading(true);
-      const res = await axios.get(`http://localhost:8000/api/archive/stats?time=${time}`);
+      const res = await axios.get(`http://localhost:8000/api/dashboard/stats?time=${time}`);
       setData(res.data);
       setLoading(false);
     } catch (err) {
@@ -131,10 +131,29 @@ const Dashboard = () => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data?.trend_data || []} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#6b7280'}} 
+                  tickFormatter={(dateStr) => {
+                    if (!dateStr || !dateStr.includes('-')) return dateStr;
+                    const parts = dateStr.split('-');
+                    if (parts.length !== 3) return dateStr;
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+                    return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]}`;
+                  }}
+                />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280'}} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  labelFormatter={(dateStr) => {
+                    if (!dateStr || !dateStr.includes('-')) return dateStr;
+                    const parts = dateStr.split('-');
+                    if (parts.length !== 3) return dateStr;
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+                    return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+                  }}
                 />
                 <Legend />
                 <Line type="monotone" dataKey="Positif" stroke="#10b981" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
