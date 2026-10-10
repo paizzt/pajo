@@ -136,20 +136,24 @@ class SentimentModel:
             self.training_status = "Mengekstraksi fitur TF-IDF..."
             self.training_progress = 80
             print("Vectorizing...")
-            self.vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=ngram_range)
-            X = self.vectorizer.fit_transform(processed_texts)
+            new_vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=ngram_range)
+            X = new_vectorizer.fit_transform(processed_texts)
             
             self.training_status = "Melatih model Support Vector Machine..."
             self.training_progress = 90
             print("Training model...")
-            self.model = SVC(C=C, kernel=kernel, probability=True, class_weight='balanced')
-            self.model.fit(X, labels)
+            new_model = SVC(C=C, kernel=kernel, probability=True, class_weight='balanced')
+            new_model.fit(X, labels)
             
             # Save model
             self.training_status = "Menyimpan model..."
             self.training_progress = 95
-            joblib.dump(self.model, self.model_path)
-            joblib.dump(self.vectorizer, self.vectorizer_path)
+            joblib.dump(new_model, self.model_path)
+            joblib.dump(new_vectorizer, self.vectorizer_path)
+            
+            # Swap models now that training is done
+            self.model = new_model
+            self.vectorizer = new_vectorizer
             # Calculate metrics
             self.training_status = "Menghitung metrik evaluasi..."
             preds = self.model.predict(X)
@@ -191,6 +195,8 @@ class SentimentModel:
             self.is_training = False
 
     def predict(self, text):
+        if self.is_training:
+            raise Exception("Model sedang dilatih. Harap tunggu hingga proses selesai.")
         if not self.is_trained:
             raise Exception("Model belum dilatih. Silakan latih model terlebih dahulu.")
             
@@ -228,7 +234,9 @@ class SentimentModel:
         }
 
     def get_top_features(self, n=50):
-        if not self.is_trained:
+        if self.is_training:
+            return []
+        if not self.is_trained or not self.vectorizer:
             return []
             
         feature_names = self.vectorizer.get_feature_names_out()

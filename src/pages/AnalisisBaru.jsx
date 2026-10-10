@@ -433,7 +433,7 @@ const AnalisisBaru = () => {
 
           {/* SIMPAN & RESET */}
           <div className="card p-8 shadow-lg border-2 border-primary/20 bg-gradient-to-br from-white to-emerald-50/50 mt-8">
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-6">Simpan & Bersihkan Ruang Kerja</h3>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-6">Simpan Laporan Hasil Analisis</h3>
             <div className="max-w-md mx-auto space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Beri Nama Laporan Ini</label>
@@ -452,7 +452,7 @@ const AnalisisBaru = () => {
                 {isSaving ? 'Loading' : 'Simpan'}
               </button>
               <p className="text-xs text-center text-gray-500 mt-2">
-                Data akan otomatis di-reset setelah disimpan.
+                Laporan akan disimpan ke Arsip Riwayat Laporan dan data ulasan akan diakumulasikan.
               </p>
             </div>
           </div>

@@ -195,10 +195,7 @@ export const AnalysisProvider = ({ children }) => {
         report_data: JSON.stringify(fullReport)
       });
       
-      // Reset Sistem ke 0
-      await axios.delete('http://localhost:8000/api/reset');
-      
-      Swal.fire('Tersimpan!', 'Laporan berhasil disimpan dan sistem telah dikosongkan untuk analisis baru.', 'success');
+      Swal.fire('Tersimpan!', 'Laporan berhasil disimpan ke Arsip Riwayat Laporan.', 'success');
       
       // Kembalikan ke awal
       setStep(1);

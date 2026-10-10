@@ -455,208 +455,104 @@ def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session =
         "top_words": top_words
     }
 
-
-# ================= NEW ENDPOINTS =================
-
-@app.get("/api/datasets")
-def get_datasets(db: Session = Depends(get_db)):
-    datasets = db.query(models.Dataset).order_by(models.Dataset.created_at.desc()).all()
-    res = []
-    for d in datasets:
-        count = db.query(models.Review).filter(models.Review.dataset_id == d.id).count()
-        res.append({
-            "id": d.id,
-            "name": d.name,
-            "description": d.description,
-            "created_at": d.created_at,
-            "review_count": count
-        })
-    return {"status": "success", "data": res}
-
-@app.post("/api/datasets")
-def create_dataset(req: DatasetCreate, db: Session = Depends(get_db)):
-    existing = db.query(models.Dataset).filter(models.Dataset.name == req.name).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Dataset dengan nama ini sudah ada")
-    
-    ds = models.Dataset(name=req.name, description=req.description)
-    db.add(ds)
-    db.commit()
-    db.refresh(ds)
-    return {"status": "success", "data": ds}
-
-@app.delete("/api/datasets/{id}")
-def delete_dataset(id: int, db: Session = Depends(get_db)):
-    ds = db.query(models.Dataset).filter(models.Dataset.id == id).first()
-    if not ds:
-        raise HTTPException(status_code=404, detail="Dataset tidak ditemukan")
-    db.delete(ds)
-    db.commit()
-    return {"status": "success"}
-
-@app.get("/api/results")
-def get_saved_results(db: Session = Depends(get_db)):
-    results = db.query(models.SavedResult).order_by(models.SavedResult.created_at.desc()).all()
-    return {"status": "success", "data": results}
-
-@app.post("/api/results")
-def save_result(req: SavedResultCreate, db: Session = Depends(get_db)):
+@app.get("/api/archive/stats")
+def get_archive_stats(time: str = 'all', sentiment: str = 'all', db: Session = Depends(get_db)):
     import json
-    if not ml_model.is_trained:
-        raise HTTPException(status_code=400, detail="Belum ada model yang dilatih saat ini.")
-        
-    sr = models.SavedResult(
-        title=req.title,
-        description=req.description,
-        dataset_name=req.dataset_name,
-        accuracy=ml_model.metrics.get('accuracy', 0),
-        metrics_json=json.dumps(ml_model.metrics),
-        report_data=req.report_data
-    )
-    db.add(sr)
-    db.commit()
-    db.refresh(sr)
-    return {"status": "success", "data": sr}
-
-@app.delete("/api/reset")
-def reset_system(db: Session = Depends(get_db)):
-    try:
-        # Delete all reviews and datasets
-        db.query(models.Review).delete()
-        db.query(models.Dataset).delete()
-        db.commit()
-        
-        # DO NOT Reset ML Model anymore so Chat still works!
-        # ml_model.is_trained = False
-        # ml_model.metrics = None
-        # ml_model.model = None
-        # ml_model.vectorizer = None
-        # if os.path.exists(ml_model.model_path):
-        #     os.remove(ml_model.model_path)
-        # if os.path.exists(ml_model.vectorizer_path):
-        #     os.remove(ml_model.vectorizer_path)
-            
-        return {"status": "success", "message": "Data sementara berhasil dikosongkan (Model AI dipertahankan)."}
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.put("/api/results/{id}")
-def update_saved_result(id: int, req: SavedResultCreate, db: Session = Depends(get_db)):
-    sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
-    if not sr:
-        raise HTTPException(status_code=404, detail="Hasil tidak ditemukan")
-    sr.title = req.title
-    sr.description = req.description
-    db.commit()
-    return {"status": "success"}
-
-@app.delete("/api/results/{id}")
-def delete_saved_result(id: int, db: Session = Depends(get_db)):
-    sr = db.query(models.SavedResult).filter(models.SavedResult.id == id).first()
-    if not sr:
-        raise HTTPException(status_code=404, detail="Hasil tidak ditemukan")
-    db.delete(sr)
-    db.commit()
-    return {"status": "success"}
-
-@app.get("/api/notifications")
-def get_notifications(db: Session = Depends(get_db)):
-    notifs = db.query(models.Notification).order_by(models.Notification.created_at.desc()).limit(20).all()
-    return {"status": "success", "data": notifs}
-
-@app.put("/api/notifications/read")
-def read_notifications(db: Session = Depends(get_db)):
-    db.query(models.Notification).update({models.Notification.is_read: True})
-    db.commit()
-    return {"status": "success"}
-
-@app.get("/api/settings")
-def get_settings(db: Session = Depends(get_db)):
-    settings = db.query(models.Setting).all()
-    default_settings = {
-        "confidence_threshold": "60",
-        "custom_stopwords": "dan, atau, di, ke, dari, yang, untuk, dengan, ini, itu, aplikasi, apk, app, muamalat, bank, din",
-        "auto_clean": "true",
-        "ngram_range": "(1,3)"
-    }
+    import datetime
     
-    result = default_settings.copy()
-    for s in settings:
-        result[s.key] = s.value
-        
-    return {"status": "success", "data": result}
-
-@app.get("/api/dashboard/stats")
-def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session = Depends(get_db)):
-    base_query = db.query(models.Review)
+    saved_results = db.query(models.SavedResult).all()
     
-    # Time filtering
-    if time != 'all':
-        now = datetime.datetime.now()
-        if time == 'today':
-            date_filter = now.strftime('%Y-%m-%d')
-            base_query = base_query.filter(models.Review.date.like(f"{date_filter}%"))
-        elif time == 'week':
-            week_ago = now - datetime.timedelta(days=7)
-            base_query = base_query.filter(models.Review.date >= week_ago.strftime('%Y-%m-%d'))
-        elif time == 'month':
-            month_filter = now.strftime('%Y-%m')
-            base_query = base_query.filter(models.Review.date.like(f"{month_filter}%"))
-
-    # Count sentiments from base query (before sentiment filter)
-    pos = base_query.filter(models.Review.sentiment_label == "POSITIF").count()
-    neg = base_query.filter(models.Review.sentiment_label == "NEGATIF").count()
-    net = base_query.filter(models.Review.sentiment_label == "NETRAL").count()
+    pos = 0
+    neg = 0
+    net = 0
+    
+    trend_dict = {}
+    word_dict = {}
+    
+    now = datetime.datetime.now()
+    
+    for sr in saved_results:
+        if not sr.report_data:
+            continue
+        try:
+            rdata = json.loads(sr.report_data)
             
-    # Apply sentiment filter for total count
-    if sentiment != 'all':
-        total = base_query.filter(models.Review.sentiment_label == sentiment).count()
-    else:
-        total = pos + neg + net
-
+            for t in rdata.get("trend_data", []):
+                date_str = t.get("name")
+                
+                # Apply time filter
+                include = True
+                if time != 'all':
+                    try:
+                        date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+                        if time == 'today':
+                            if date_str != now.strftime('%Y-%m-%d'): include = False
+                        elif time == 'week':
+                            week_ago = now - datetime.timedelta(days=7)
+                            if date_obj < week_ago: include = False
+                        elif time == 'month':
+                            if date_str[:7] != now.strftime('%Y-%m'): include = False
+                    except:
+                        pass
+                
+                if include:
+                    if date_str not in trend_dict:
+                        trend_dict[date_str] = {"name": date_str, "Positif": 0, "Negatif": 0, "Netral": 0}
+                    
+                    p = t.get("Positif", 0)
+                    n = t.get("Negatif", 0)
+                    ne = t.get("Netral", 0)
+                    
+                    trend_dict[date_str]["Positif"] += p
+                    trend_dict[date_str]["Negatif"] += n
+                    trend_dict[date_str]["Netral"] += ne
+                    
+                    pos += p
+                    neg += n
+                    net += ne
+            
+            for w in rdata.get("top_words", []):
+                w_name = w.get("name")
+                if w_name not in word_dict:
+                    word_dict[w_name] = 0
+                word_dict[w_name] += w.get("count", 0)
+                
+        except:
+            pass
+            
+    total = pos + neg + net
+    if sentiment == 'POSITIF': total = pos
+    elif sentiment == 'NEGATIF': total = neg
+    elif sentiment == 'NETRAL': total = net
+    
     pie_data = [
         {"name": "Positif", "value": pos, "color": "#10b981"},
         {"name": "Negatif", "value": neg, "color": "#ef4444"},
         {"name": "Netral", "value": net, "color": "#64748b"}
     ]
-
-    # Fetch all dates and sentiments for the time filter
-    all_filtered = base_query.all()
-    trend_dict = {}
-    for r in all_filtered:
-        d = str(r.date).split("T")[0]
-        if d not in trend_dict:
-            trend_dict[d] = {"name": d, "Positif": 0, "Negatif": 0, "Netral": 0}
-        
-        sent = r.sentiment_label
-        if sent == "POSITIF": trend_dict[d]["Positif"] += 1
-        elif sent == "NEGATIF": trend_dict[d]["Negatif"] += 1
-        else: trend_dict[d]["Netral"] += 1
-        
+    
     trend_data = list(trend_dict.values())
     trend_data.sort(key=lambda x: x["name"])
-    
     if len(trend_data) > 14:
         trend_data = trend_data[-14:]
-    
-    top_words = []
-    if ml_model.is_trained:
-        features = ml_model.get_top_features(5)
-        top_words = [{"name": f["word"], "count": f["tfidf"]} for f in features]
-    
+        
+    top_words = [{"name": k, "count": round(v, 4)} for k, v in word_dict.items()]
+    top_words.sort(key=lambda x: x["count"], reverse=True)
+    top_words = top_words[:5]
     if not top_words:
-        top_words = [{"name": "Belum ada model", "count": 0}]
-
+        top_words = [{"name": "Belum ada data", "count": 0}]
+        
+    accuracy = "N/A"
+    if saved_results:
+        accuracy = f"{round(sum(sr.accuracy for sr in saved_results if sr.accuracy) / len(saved_results), 2)}%"
+        
     return {
         "stats": {
             "total_ulasan": total,
             "positif": pos,
             "negatif": neg,
             "netral": net,
-            "akurasi_model": f"{ml_model.metrics['accuracy']}%" if ml_model.is_trained and ml_model.metrics else "N/A"
+            "akurasi_model": accuracy
         },
         "pie_data": pie_data,
         "trend_data": trend_data,
