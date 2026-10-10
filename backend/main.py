@@ -382,8 +382,10 @@ def get_confusion_details(actual: str, predicted: str, db: Session = Depends(get
     return {"data": results}
 
 @app.get("/api/dashboard/stats")
-def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session = Depends(get_db)):
+def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', app_id: Optional[str] = None, db: Session = Depends(get_db)):
     base_query = db.query(models.Review)
+    if app_id:
+        base_query = base_query.filter(models.Review.app_id == app_id)
     
     # Time filtering
     if time != 'all':
@@ -435,12 +437,32 @@ def get_dashboard_stats(time: str = 'all', sentiment: str = 'all', db: Session =
         trend_data = trend_data[-14:]
     
     top_words = []
-    if ml_model.is_trained:
-        features = ml_model.get_top_features(5)
-        top_words = [{"name": f["word"], "count": f["tfidf"]} for f in features]
     
+    # Calculate dataset-specific top words if app_id is provided
+    if app_id:
+        reviews_for_words = base_query.all()
+        if reviews_for_words:
+            texts = [r.content for r in reviews_for_words if r.content]
+            if texts:
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                try:
+                    vec = TfidfVectorizer(max_features=5)
+                    X = vec.fit_transform(texts)
+                    feature_names = vec.get_feature_names_out()
+                    scores = X.sum(axis=0).A1
+                    word_scores = [(feature_names[i], scores[i]) for i in range(len(feature_names))]
+                    word_scores.sort(key=lambda x: x[1], reverse=True)
+                    top_words = [{"name": w[0], "count": round(w[1], 2)} for w in word_scores[:5]]
+                except:
+                    pass
+
+    # Fallback to global model if dataset-specific words failed or not requested
     if not top_words:
-        top_words = [{"name": "Belum ada model", "count": 0}]
+        if ml_model.is_trained:
+            features = ml_model.get_top_features(5)
+            top_words = [{"name": f["word"], "count": f["tfidf"]} for f in features]
+        else:
+            top_words = [{"name": "Belum ada model", "count": 0}]
 
     return {
         "stats": {

@@ -155,8 +155,9 @@ export const AnalysisProvider = ({ children }) => {
 
   const fetchReportData = async () => {
     try {
+      const currentAppId = inputType === 'playstore' ? appId : 'csv_upload';
       const [statsRes, metricsRes, featuresRes, reviewsRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/dashboard/stats?time=all&sentiment=all'),
+        axios.get(`http://localhost:8000/api/dashboard/stats?time=all&sentiment=all&app_id=${currentAppId}`),
         axios.get('http://localhost:8000/api/model/metrics'),
         axios.get('http://localhost:8000/api/features?limit=20'),
         axios.get(`http://localhost:8000/api/reviews?limit=${count || 1000}`)

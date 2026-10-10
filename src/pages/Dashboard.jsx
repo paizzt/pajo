@@ -22,7 +22,7 @@ const Dashboard = () => {
   const fetchStats = async (time) => {
     try {
       setLoading(true);
-      const res = await axios.get(`http://localhost:8000/api/dashboard/stats?time=${time}`);
+      const res = await axios.get(`http://localhost:8000/api/archive/stats?time=${time}`);
       setData(res.data);
       setLoading(false);
     } catch (err) {
