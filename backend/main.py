@@ -529,9 +529,16 @@ def get_archive_stats(time: str = 'all', sentiment: str = 'all', db: Session = D
                     trend_dict[date_str]["Negatif"] += n
                     trend_dict[date_str]["Netral"] += ne
                     
-                    pos += p
-                    neg += n
-                    net += ne
+                    if time != 'all':
+                        pos += p
+                        neg += n
+                        net += ne
+            
+            if time == 'all':
+                stats = rdata.get("stats", {})
+                pos += stats.get("positif", 0)
+                neg += stats.get("negatif", 0)
+                net += stats.get("netral", 0)
             
             for w in rdata.get("top_words", []):
                 w_name = w.get("name")
